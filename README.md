@@ -1,6 +1,12 @@
 # 🎭 GuessMe - Multiplayer Headband Game
 
-![GuessMe Banner](assets/images/banner.png)
+![Flutter](https://img.shields.io/badge/Flutter-3.x-blue?style=for-the-badge&logo=flutter)
+![Firebase](https://img.shields.io/badge/Firebase-Auth%20%7C%20Storage%20%7C%20DB-orange?style=for-the-badge&logo=firebase)
+![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20Web-green?style=for-the-badge&logo=googlechrome)
+
+<p align="center">
+  <img src="assets/images/banner.png" width="450" alt="GuessMe Banner">
+</p>
 
 ## 🚀 Live Demo & Downloads
 
