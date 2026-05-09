@@ -10,6 +10,7 @@ import 'game_screen.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../data/game_packs.dart';
+import 'home_screen.dart';
 
 class LobbyScreen extends StatefulWidget {
   const LobbyScreen({super.key});
@@ -53,7 +54,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
       await userProvider.setLastRoomId(null);
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(builder: (_) => HomeScreen()),
           (route) => false,
         );
       }
@@ -123,7 +124,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
           if (ModalRoute.of(context)?.isCurrent == true) {
             context.read<UserProvider>().setLastRoomId(null);
             Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const HomeScreen()),
+              MaterialPageRoute(builder: (_) => HomeScreen()),
               (route) => false,
             );
             ScaffoldMessenger.of(context).showSnackBar(
