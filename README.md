@@ -2,6 +2,11 @@
 
 ![GuessMe Banner](assets/images/banner.png)
 
+## 🚀 Live Demo & Downloads
+
+*   **🌐 Web Version**: Play directly in your browser at [guess-me-bfd58.web.app](https://guess-me-bfd58.web.app/)
+*   **📱 Android APK**: The latest stable APK is available in the [Releases section](https://github.com/Gigiux6/GuessMe/releases) of this repository.
+
 **GuessMe** is a vibrant, fun-filled multiplayer social game inspired by the classic "Who Am I?" or "Headband" games. Play with friends online in real-time, guess your secret identity, and enjoy a premium gaming experience built with Flutter and Firebase.
 
 ## 🚀 Main Features
