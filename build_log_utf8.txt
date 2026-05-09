@@ -1,0 +1,462 @@
+﻿Compiling lib\main.dart for the Web...                          
+flutter : Wasm dry run succeeded. Consider building and testing your application with the `--wasm` flag. See docs for 
+more info: https://docs.flutter.dev/platform-integration/web/wasm
+In riga:1 car:1
++ flutter build web --release > build_log.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Wasm dry run su...ration/web/wasm:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Use --no-wasm-dry-run to disable these warnings.
+Target dart2js failed: ProcessException: Process exited abnormally with exit code 1:
+lib/screens/home_screen.dart:197:25:
+Error: Can't find ')' to match '('.
+                    Text(
+                        ^
+lib/data/translations.dart:399:43:
+Error: The non-ASCII character '├â┬®' (U+00E9) can't be used in identifiers, only in strings and comments.
+      'thanks_playing': 'Merci d'avoir jou├â┬® !',
+                                          ^
+lib/data/translations.dart:399:46:
+Error: String starting with ' must end with '.
+      'thanks_playing': 'Merci d'avoir jou├â┬® !',
+                                             ^^
+lib/data/translations.dart:399:34:
+Error: Expected ',' before this.
+      'thanks_playing': 'Merci d'avoir jou├â┬® !',
+                                 ^^^^^
+lib/data/translations.dart:399:40:
+Error: Expected ',' before this.
+      'thanks_playing': 'Merci d'avoir jou├â┬® !',
+                                       ^^^^
+lib/data/translations.dart:399:46:
+Error: Expected ',' before this.
+      'thanks_playing': 'Merci d'avoir jou├â┬® !',
+                                             ^^
+lib/providers/game_provider.dart:120:43:
+Error: Type 'UserProvider' not found.
+  Future<void> saveRoomId(String? roomId, UserProvider userProvider) async {
+                                          ^^^^^^^^^^^^
+lib/data/translations.dart:399:40:
+Error: Undefined name 'jou├â┬®'.
+      'thanks_playing': 'Merci d'avoir jou├â┬® !',
+                                       ^^^^
+lib/data/translations.dart:399:34:
+Error: Undefined name 'avoir'.
+      'thanks_playing': 'Merci d'avoir jou├â┬® !',
+                                 ^^^^^
+lib/data/translations.dart:324:18:
+Error: Expected ',' before this.
+      'app_title': 'Guess Me',
+                 ^
+lib/data/translations.dart:325:16:
+Error: Expected ',' before this.
+      'welcome': 'Bonjour, {name} !',
+               ^
+lib/data/translations.dart:326:20:
+Error: Expected ',' before this.
+      'create_room': 'CR├âÔÇ░ER SALLE',
+                   ^
+lib/data/translations.dart:327:18:
+Error: Expected ',' before this.
+      'join_room': 'REJOINDRE',
+                 ^
+lib/data/translations.dart:328:16:
+Error: Expected ',' before this.
+      'qr_scan': 'SCAN QR',
+               ^
+lib/data/translations.dart:329:18:
+Error: Expected ',' before this.
+      'room_code': 'Code de la Salle',
+                 ^
+lib/data/translations.dart:330:18:
+Error: Expected ',' before this.
+      'your_name': 'Ton Nom',
+                 ^
+lib/data/translations.dart:331:25:
+Error: Expected ',' before this.
+      'enter_name_error': 'S\'il te pla├â┬«t, entre ton nom !',
+                        ^
+lib/data/translations.dart:332:25:
+Error: Expected ',' before this.
+      'enter_room_error': 'S\'il te pla├â┬«t, entre le code de la salle !',
+                        ^
+lib/data/translations.dart:333:23:
+Error: Expected ',' before this.
+      'room_not_found': 'Salle non trouv├â┬®e ! V├â┬®rifie le code.',
+                      ^
+lib/data/translations.dart:334:21:
+Error: Expected ',' before this.
+      'invita_amici': 'Invite tes amis !',
+                    ^
+lib/data/translations.dart:335:17:
+Error: Expected ',' before this.
+      'settings': 'PARAM├â╦åTRES',
+                ^
+lib/data/translations.dart:336:16:
+Error: Expected ',' before this.
+      'profile': 'TON PROFIL',
+               ^
+lib/data/translations.dart:337:21:
+Error: Expected ',' before this.
+      'edit_profile': 'MODIFIER PROFIL',
+                    ^
+lib/data/translations.dart:338:14:
+Error: Expected ',' before this.
+      'stats': 'TES STATISTIQUES',
+             ^
+lib/data/translations.dart:339:18:
+Error: Expected ',' before this.
+      'games_won': '├░┼©┬ÅÔÇá Parties Gagn├â┬®es : {count}',
+                 ^
+lib/data/translations.dart:340:21:
+Error: Expected ',' before this.
+      'music_volume': 'VOLUME MUSIQUE',
+                    ^
+lib/data/translations.dart:341:23:
+Error: Expected ',' before this.
+      'effects_volume': 'VOLUME EFFETS',
+                      ^
+lib/data/translations.dart:342:17:
+Error: Expected ',' before this.
+      'language': 'LANGUE APP',
+                ^
+lib/data/translations.dart:343:21:
+Error: Expected ',' before this.
+      'save_changes': 'SAUVEGARDER',
+                    ^
+lib/data/translations.dart:344:17:
+Error: Expected ',' before this.
+      'nickname': 'TON PSEUDO',
+                ^
+lib/data/translations.dart:345:22:
+Error: Expected ',' before this.
+      'choose_avatar': 'CHOISIR AVATAR',
+                     ^
+lib/data/translations.dart:346:20:
+Error: Expected ',' before this.
+      'player_left': '{name} a quitt├â┬® la salle.',
+                   ^
+lib/data/translations.dart:347:20:
+Error: Expected ',' before this.
+      'rejoin_room': 'REJOINDRE LA PARTIE',
+                   ^
+lib/data/translations.dart:348:25:
+Error: Expected ',' before this.
+      'room_closed_host': 'La salle a ├â┬®t├â┬® ferm├â┬®e par l\'h├â┬┤te. ',
+                        ^
+lib/data/translations.dart:349:16:
+Error: Expected ',' before this.
+      'players': 'JOUEURS ({count})',
+               ^
+lib/data/translations.dart:350:21:
+Error: Expected ',' before this.
+      'waiting_host': 'En attente que l\'h├â┬┤te lance la partie...',
+                    ^
+lib/data/translations.dart:351:19:
+Error: Expected ',' before this.
+      'start_game': 'LANCER LA PARTIE',
+                  ^
+lib/data/translations.dart:352:18:
+Error: Expected ',' before this.
+      'game_mode': 'Mode de Jeu :',
+                 ^
+lib/data/translations.dart:353:21:
+Error: Expected ',' before this.
+      'preset_packs': 'Packs Pr├â┬®d├â┬®finis',
+                    ^
+lib/data/translations.dart:354:20:
+Error: Expected ',' before this.
+      'custom_mode': 'Personnalis├â┬®',
+                   ^
+lib/data/translations.dart:355:20:
+Error: Expected ',' before this.
+      'select_pack': 'S├â┬®lectionne un Pack :',
+                   ^
+lib/data/translations.dart:356:22:
+Error: Expected ',' before this.
+      'host_settings': 'PARAM├â╦åTRES H├âÔÇØTE',
+                     ^
+lib/data/translations.dart:357:21:
+Error: Expected ',' before this.
+      'are_you_sure': 'Es-tu s├â┬╗r ?',
+                    ^
+lib/data/translations.dart:358:26:
+Error: Expected ',' before this.
+      'exit_warning_host': 'Si tu sors, la salle sera ferm├â┬®e pour tout le monde.',
+                         ^
+lib/data/translations.dart:359:28:
+Error: Expected ',' before this.
+      'exit_warning_player': 'Es-tu s├â┬╗r de vouloir quitter la salle ?',
+                           ^
+lib/data/translations.dart:360:15:
+Error: Expected ',' before this.
+      'cancel': 'ANNULER',
+              ^
+lib/data/translations.dart:361:13:
+Error: Expected ',' before this.
+      'exit': 'QUITTER',
+            ^
+lib/data/translations.dart:362:18:
+Error: Expected ',' before this.
+      'your_turn': 'C\'est ton tour !',
+                 ^
+lib/data/translations.dart:363:20:
+Error: Expected ',' before this.
+      'active_turn': 'Tour de {name}',
+                   ^
+lib/data/translations.dart:364:19:
+Error: Expected ',' before this.
+      'leave_game': 'Abandonner la partie ?',
+                  ^
+lib/data/translations.dart:365:26:
+Error: Expected ',' before this.
+      'exit_warning_game': 'Si tu sors, la salle sera ferm├â┬®e pour tout le monde.',
+                         ^
+lib/data/translations.dart:366:33:
+Error: Expected ',' before this.
+      'exit_warning_player_game': 'Es-tu s├â┬╗r de vouloir quitter ? Tu ne pourras pas rejoindre cette session.',
+                                ^
+lib/data/translations.dart:367:19:
+Error: Expected ',' before this.
+      'saved_rank': '├░┼©┼¢ÔÇ░ TU ES SAUV├âÔÇ░ ! Position : {rank}e ├░┼©┼¢ÔÇ░',
+                  ^
+lib/data/translations.dart:368:20:
+Error: Expected ',' before this.
+      'wait_finish': 'Attends la fin de la partie',
+                   ^
+lib/data/translations.dart:369:27:
+Error: Expected ',' before this.
+      'guess_instructions': 'Pose des questions aux autres pour deviner qui tu es !',
+                          ^
+lib/data/translations.dart:370:19:
+Error: Expected ',' before this.
+      'notes_hint': 'Utilise cet espace pour prendre des notes...',
+                  ^
+lib/data/translations.dart:371:16:
+Error: Expected ',' before this.
+      'guessed': 'DEVIN├âÔÇ░ !',
+               ^
+lib/data/translations.dart:372:13:
+Error: Expected ',' before this.
+      'pass': 'PASSER',
+            ^
+lib/data/translations.dart:373:20:
+Error: Expected ',' before this.
+      'identity_is': 'L\'identit├â┬® de {name} est :',
+                   ^
+lib/data/translations.dart:374:28:
+Error: Expected ',' before this.
+      'yes_no_instructions': 'R├â┬®ponds ├â┬á ses questions par Oui ou par Non !',
+                           ^
+lib/data/translations.dart:375:26:
+Error: Expected ',' before this.
+      'min_players_error': 'Il faut au moins 2 joueurs pour commencer !',
+                         ^
+lib/data/translations.dart:376:20:
+Error: Expected ',' before this.
+      'how_to_play': 'COMMENT JOUER',
+                   ^
+lib/data/translations.dart:377:26:
+Error: Expected ',' before this.
+      'game_instructions': '1. Cr├â┬®e une salle ou rejoins-en une.\n2. Chaque joueur re├â┬ºoit une identit├â┬® 
+secr├â┬¿te que tout le monde voit, sauf lui.\n3. ├âÔé¼ ton tour, pose des questions aux autres pour d├â┬®couvrir qui 
+tu es !\n4. Les autres ne peuvent r├â┬®pondre que par OUI ou par NON.\n5. Si tu devines correctement, tu gagnes et tu 
+es sauv├â┬® !',
+                         ^
+lib/data/translations.dart:378:14:
+Error: Expected ',' before this.
+      'close': 'FERMER',
+             ^
+lib/data/translations.dart:379:13:
+Error: Expected ',' before this.
+      'room': 'Salle',
+            ^
+lib/data/translations.dart:380:19:
+Error: Expected ',' before this.
+      'code_label': 'CODE',
+                  ^
+lib/data/translations.dart:381:16:
+Error: Expected ',' before this.
+      'animals': 'Animaux',
+               ^
+lib/data/translations.dart:382:25:
+Error: Expected ',' before this.
+      'sport_characters': 'Personnages Sportifs',
+                        ^
+lib/data/translations.dart:383:20:
+Error: Expected ',' before this.
+      'celebrities': 'C├â┬®l├â┬®brit├â┬®s (VIP)',
+                   ^
+lib/data/translations.dart:384:18:
+Error: Expected ',' before this.
+      'countries': 'Pays du Monde',
+                 ^
+lib/data/translations.dart:385:19:
+Error: Expected ',' before this.
+      'videogames': 'Jeux Vid├â┬®o',
+                  ^
+lib/data/translations.dart:386:15:
+Error: Expected ',' before this.
+      'sports': 'Sports',
+              ^
+lib/data/translations.dart:387:18:
+Error: Expected ',' before this.
+      'nba_stars': 'Stars de la NBA',
+                 ^
+lib/data/translations.dart:388:21:
+Error: Expected ',' before this.
+      'soccer_stars': 'Stars du Football',
+                    ^
+lib/data/translations.dart:389:20:
+Error: Expected ',' before this.
+      'superheroes': 'Super-h├â┬®ros',
+                   ^
+lib/data/translations.dart:390:25:
+Error: Expected ',' before this.
+      'anime_characters': 'Personnages d\'Anime',
+                        ^
+lib/data/translations.dart:391:27:
+Error: Expected ',' before this.
+      'prepare_identities': 'Pr├â┬®parez les Identit├â┬®s',
+                          ^
+lib/data/translations.dart:392:29:
+Error: Expected ',' before this.
+      'choose_identity_hint': 'Choisis un nom ├â┬á faire deviner ├â┬á un ami !',
+                            ^
+lib/data/translations.dart:393:22:
+Error: Expected ',' before this.
+      'identity_name': 'Nom de l\'identit├â┬®',
+                     ^
+lib/data/translations.dart:394:16:
+Error: Expected ',' before this.
+      'confirm': 'CONFIRMER',
+               ^
+lib/data/translations.dart:395:22:
+Error: Expected ',' before this.
+      'identity_sent': 'Identit├â┬® envoy├â┬®e !\nEn attente des autres joueurs...',
+                     ^
+lib/data/translations.dart:396:23:
+Error: Expected ',' before this.
+      'start_game_now': 'D├âÔÇ░MARRER LA PARTIE',
+                      ^
+lib/data/translations.dart:397:22:
+Error: Expected ',' before this.
+      'final_ranking': 'CLASSEMENT FINAL',
+                     ^
+lib/data/translations.dart:398:21:
+Error: Expected ',' before this.
+      'was_identity': 'C\'├â┬®tait : {identity}',
+                    ^
+lib/data/translations.dart:399:23:
+Error: Expected ',' before this.
+      'thanks_playing': 'Merci d'avoir jou├â┬® !',
+                      ^
+lib/data/translations.dart:400:22:
+Error: Expected ',' before this.
+      'back_to_lobby': 'RETOUR ├âÔé¼ LA SALLE',
+                     ^
+lib/data/translations.dart:401:27:
+Error: Expected ',' before this.
+      'waiting_host_lobby': 'En attente que l\'h├â┬┤te lance une nouvelle partie...',
+                          ^
+lib/data/translations.dart:323:11:
+Error: A value of type 'Set<dynamic>' can't be assigned to a variable of type 'Map<String, String>'.
+ - 'Set' is from 'dart:core'.
+ - 'Map' is from 'dart:core'.
+    'fr': {
+          ^
+lib/providers/game_provider.dart:120:43:
+Error: 'UserProvider' isn't a type.
+  Future<void> saveRoomId(String? roomId, UserProvider userProvider) async {
+                                          ^^^^^^^^^^^^
+lib/providers/game_provider.dart:172:95:
+Error: 'UserProvider' isn't a type.
+        await sendSystemMessage(roomId, AppTranslations.translate('player_left', 
+context.read<UserProvider>().language, args: {'name': name}));
+                                                                                          ^^^^^^^^^^^^
+lib/providers/game_provider.dart:172:41:
+Error: The getter 'AppTranslations' isn't defined for the type 'GameProvider'.
+ - 'GameProvider' is from 'package:guess_me/providers/game_provider.dart' ('lib/providers/game_provider.dart').
+        await sendSystemMessage(roomId, AppTranslations.translate('player_left', 
+context.read<UserProvider>().language, args: {'name': name}));
+                                        ^^^^^^^^^^^^^^^
+lib/providers/game_provider.dart:172:82:
+Error: The getter 'context' isn't defined for the type 'GameProvider'.
+ - 'GameProvider' is from 'package:guess_me/providers/game_provider.dart' ('lib/providers/game_provider.dart').
+        await sendSystemMessage(roomId, AppTranslations.translate('player_left', 
+context.read<UserProvider>().language, args: {'name': name}));
+                                                                                 ^^^^^^^
+lib/screens/home_screen.dart:205:19:
+Error: Expected an identifier, but got 'if'.
+                  if (userProvider.lastRoomId != null && !isLoading) ...[
+                  ^^
+lib/screens/home_screen.dart:205:19:
+Error: Expected ')' before this.
+                  if (userProvider.lastRoomId != null && !isLoading) ...[
+                  ^^
+lib/screens/home_screen.dart:168:28:
+Error: Too many positional arguments: 0 allowed, but 1 found.
+              child: Column(
+                           ^
+/C:/flutter/packages/flutter/lib/src/widgets/basic.dart:6008:9:
+Info: Found this candidate, but the arguments don't match.
+  const Column({
+        ^^^^^^
+Error: Compilation failed.
+  Command: C:\flutter\bin\cache\dart-sdk\bin\dart.exe compile js 
+--platform-binaries=C:\flutter\bin\cache\flutter_web_sdk\kernel --invoker=flutter_tool -Ddart.vm.product=true 
+-DFLUTTER_VERSION=3.41.7 -DFLUTTER_CHANNEL=stable -DFLUTTER_GIT_URL=https://github.com/flutter/flutter.git 
+-DFLUTTER_FRAMEWORK_REVISION=cc0734ac71 -DFLUTTER_ENGINE_REVISION=59aa584fdf -DFLUTTER_DART_VERSION=3.11.5 
+-DFLUTTER_WEB_USE_SKIA=true -DFLUTTER_WEB_USE_SKWASM=false 
+-DFLUTTER_WEB_CANVASKIT_URL=https://www.gstatic.com/flutter-canvaskit/59aa584fdf100e6c78c785d8a5b565d1de4b48ab/ 
+--native-null-assertions --no-source-maps -O4 --minify -o C:\Progetti\Progetti 
+Antigravity\GuessMe\.dart_tool\flutter_build\133cd059b29c3a9c83b6c65e88d87b5f\app.dill --packages=C:\Progetti\Progetti 
+Antigravity\GuessMe\.dart_tool\package_config.json --cfe-only C:\Progetti\Progetti 
+Antigravity\GuessMe\.dart_tool\flutter_build\133cd059b29c3a9c83b6c65e88d87b5f\main.dart
+#0      RunResult.throwException (package:flutter_tools/src/base/process.dart:153:5)
+#1      _DefaultProcessUtils.run (package:flutter_tools/src/base/process.dart:379:19)
+<asynchronous suspension>
+#2      Dart2JSTarget.build (package:flutter_tools/src/build_system/targets/web.dart:208:5)
+<asynchronous suspension>
+#3      _BuildInstance._invokeInternal (package:flutter_tools/src/build_system/build_system.dart:937:9)
+<asynchronous suspension>
+#4      Future.wait.<anonymous closure> (dart:async/future.dart:546:21)
+<asynchronous suspension>
+#5      _BuildInstance.invokeTarget (package:flutter_tools/src/build_system/build_system.dart:875:32)
+<asynchronous suspension>
+#6      Future.wait.<anonymous closure> (dart:async/future.dart:546:21)
+<asynchronous suspension>
+#7      _BuildInstance.invokeTarget (package:flutter_tools/src/build_system/build_system.dart:875:32)
+<asynchronous suspension>
+#8      FlutterBuildSystem.build (package:flutter_tools/src/build_system/build_system.dart:684:16)
+<asynchronous suspension>
+#9      WebBuilder.buildWeb (package:flutter_tools/src/web/compile.dart:107:34)
+<asynchronous suspension>
+#10     BuildWebCommand.runCommand (package:flutter_tools/src/commands/build_web.dart:300:5)
+<asynchronous suspension>
+#11     FlutterCommand.run.<anonymous closure> (package:flutter_tools/src/runner/flutter_command.dart:1590:27)
+<asynchronous suspension>
+#12     AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#13     CommandRunner.runCommand (package:args/command_runner.dart:212:13)
+<asynchronous suspension>
+#14     FlutterCommandRunner.runCommand.<anonymous closure> 
+(package:flutter_tools/src/runner/flutter_command_runner.dart:496:9)
+<asynchronous suspension>
+#15     AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#16     FlutterCommandRunner.runCommand (package:flutter_tools/src/runner/flutter_command_runner.dart:431:5)
+<asynchronous suspension>
+#17     FlutterCommandRunner.run.<anonymous closure> 
+(package:flutter_tools/src/runner/flutter_command_runner.dart:307:33)
+<asynchronous suspension>
+#18     run.<anonymous closure>.<anonymous closure> (package:flutter_tools/runner.dart:104:11)
+<asynchronous suspension>
+#19     AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#20     main (package:flutter_tools/executable.dart:103:3)
+<asynchronous suspension>
+Compiling lib\main.dart for the Web...                             69,9s
+
+Error: Failed to compile application for the Web.
