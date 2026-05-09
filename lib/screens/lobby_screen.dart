@@ -52,7 +52,10 @@ class _LobbyScreenState extends State<LobbyScreen> {
       await gameProvider.leaveRoom(name: name, language: userProvider.language);
       await userProvider.setLastRoomId(null);
       if (mounted) {
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
       }
     }
   }
@@ -119,7 +122,10 @@ class _LobbyScreenState extends State<LobbyScreen> {
          WidgetsBinding.instance.addPostFrameCallback((_) {
           if (ModalRoute.of(context)?.isCurrent == true) {
             context.read<UserProvider>().setLastRoomId(null);
-            Navigator.of(context).popUntil((route) => route.isFirst);
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const HomeScreen()),
+              (route) => false,
+            );
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(context.read<UserProvider>().t('room_closed_host'))),
             );
