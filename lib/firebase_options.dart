@@ -48,6 +48,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '468446089858',
     projectId: 'guess-me-bfd58',
     databaseURL: 'https://guess-me-bfd58-default-rtdb.europe-west1.firebasedatabase.app',
+    storageBucket: 'guess-me-bfd58.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
@@ -56,6 +57,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '468446089858',
     projectId: 'guess-me-bfd58',
     databaseURL: 'https://guess-me-bfd58-default-rtdb.europe-west1.firebasedatabase.app',
+    storageBucket: 'guess-me-bfd58.firebasestorage.app',
     iosBundleId: 'com.antigravity.guess_me',
   );
 
@@ -65,6 +67,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '468446089858',
     projectId: 'guess-me-bfd58',
     databaseURL: 'https://guess-me-bfd58-default-rtdb.europe-west1.firebasedatabase.app',
+    storageBucket: 'guess-me-bfd58.firebasestorage.app',
     iosBundleId: 'com.antigravity.guess_me',
   );
 
