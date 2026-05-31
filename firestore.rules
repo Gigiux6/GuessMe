@@ -1,0 +1,54 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if the user is logged in
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to get the hostId of a room
+    function getHostId(roomId) {
+      return get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId;
+    }
+    
+    // Helper function to check if the user is the host of the room
+    function isHost(roomId) {
+      return isAuthenticated() && getHostId(roomId) == request.auth.uid;
+    }
+
+    // Rules for users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Rules for rooms collection
+    match /rooms/{roomId} {
+      allow read, create: if isAuthenticated();
+      // Allow host to update settings/status, and allow active players to update turnIndex or lastSystemMessage
+      allow update: if isAuthenticated() && (
+        resource.data.hostId == request.auth.uid ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['turnIndex', 'lastSystemMessage'])
+      );
+      allow delete: if isHost(roomId);
+      
+      // Rules for players subcollection
+      match /players/{playerId} {
+        allow read: if isAuthenticated();
+        // A player can join/leave or update their own score/status.
+        // The host is allowed to modify any player (e.g. assigning identities/points).
+        allow create, delete: if isAuthenticated() && (request.auth.uid == playerId || isHost(roomId));
+        allow update: if isAuthenticated() && (request.auth.uid == playerId || isHost(roomId));
+      }
+      
+      // Rules for submissions subcollection
+      match /submissions/{playerId} {
+        // Only the host can read the submissions list
+        allow read: if isHost(roomId);
+        // Any player can write/delete their own submission
+        allow write: if isAuthenticated() && request.auth.uid == playerId;
+      }
+    }
+  }
+}

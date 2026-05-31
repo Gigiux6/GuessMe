@@ -59,9 +59,23 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 const SizedBox(height: 60),
                 TextField(
                   controller: _nameController,
-                  decoration: const InputDecoration(
+                  maxLength: 15,
+                  style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                  decoration: InputDecoration(
+                    counterText: "",
                     labelText: 'Il tuo Nickname',
-                    prefixIcon: Icon(Icons.face),
+                    labelStyle: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                    prefixIcon: const Icon(Icons.face, color: Colors.black),
+                    filled: true,
+                    fillColor: Colors.white,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Colors.black, width: 2),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Colors.black, width: 2),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 40),

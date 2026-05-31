@@ -7,10 +7,12 @@ import '../models/user_model.dart';
 import '../data/translations.dart';
 import '../data/game_packs.dart';
 import '../services/data_loader.dart';
+import '../services/auth_service.dart';
 
 class UserProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseService _firebaseService = FirebaseService();
+  final AuthService _authService = AuthService();
   
   UserModel? _user;
   UserModel? get user => _user;
@@ -18,6 +20,7 @@ class UserProvider with ChangeNotifier {
   bool _isInitialized = false;
   final AudioPlayer _uiPlayer = AudioPlayer();
   bool get isInitialized => _isInitialized;
+  bool get isAnonymous => _authService.isAnonymous;
 
   static const String _nameKey = 'user_name';
   static const String _avatarKey = 'user_avatar';
@@ -30,7 +33,7 @@ class UserProvider with ChangeNotifier {
   bool _isDarkMode = false;
   bool get isDarkMode => _isDarkMode;
   
-  double _musicVolume = 0.5;
+  double _musicVolume = 0.3;
   double get musicVolume => _musicVolume;
   
   double _effectsVolume = 1.0;
@@ -48,7 +51,7 @@ class UserProvider with ChangeNotifier {
     try {
       debugPrint('1. Cerco SharedPreferences...');
       final prefs = await SharedPreferences.getInstance();
-      _musicVolume = prefs.getDouble(_musicVolumeKey) ?? 0.5;
+      _musicVolume = prefs.getDouble(_musicVolumeKey) ?? 0.3;
       _effectsVolume = prefs.getDouble(_effectsVolumeKey) ?? 1.0;
       _language = prefs.getString(_languageKey) ?? 'it';
       _lastRoomId = prefs.getString(_lastRoomIdKey);
@@ -277,5 +280,90 @@ class UserProvider with ChangeNotifier {
 
   String t(String key, {Map<String, String>? args}) {
     return AppTranslations.translate(key, _language, args: args);
+  }
+
+  void resetInitializationFlag() {
+    _isInitialized = false;
+    notifyListeners();
+  }
+
+  Future<bool> linkAccountWithGoogle() async {
+    try {
+      final user = await _authService.linkWithGoogle();
+      if (user != null) {
+        final prefs = await SharedPreferences.getInstance();
+        final existingName = _user?.name;
+        final name = (existingName != null && existingName.isNotEmpty && existingName != 'Giocatore')
+            ? existingName
+            : (user.displayName ?? 'Giocatore');
+        final photo = user.photoURL ?? _user?.avatarUrl ?? _getDefaultAvatar(name);
+        await prefs.setString(_nameKey, name);
+        await prefs.setString(_avatarKey, photo);
+        await _syncProfile(user.uid, name, photo);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Errore durante linkAccountWithGoogle: $e');
+      rethrow;
+    }
+  }
+
+  Future<bool> linkAccountWithCredential(AuthCredential credential) async {
+    try {
+      final user = await _authService.linkWithProviderCredential(credential);
+      if (user != null) {
+        final prefs = await SharedPreferences.getInstance();
+        final existingName = _user?.name;
+        final name = (existingName != null && existingName.isNotEmpty && existingName != 'Giocatore')
+            ? existingName
+            : (user.displayName ?? 'Giocatore');
+        final photo = user.photoURL ?? _user?.avatarUrl ?? _getDefaultAvatar(name);
+        await prefs.setString(_nameKey, name);
+        await prefs.setString(_avatarKey, photo);
+        await _syncProfile(user.uid, name, photo);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Errore durante linkAccountWithCredential: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> signInWithGoogle() async {
+    try {
+      final user = await _authService.signInWithGoogle();
+      if (user != null) {
+        final prefs = await SharedPreferences.getInstance();
+        final existingName = _user?.name;
+        final name = (existingName != null && existingName.isNotEmpty && existingName != 'Giocatore')
+            ? existingName
+            : (user.displayName ?? 'Giocatore');
+        final photo = user.photoURL ?? _getDefaultAvatar(name);
+        await prefs.setString(_nameKey, name);
+        await prefs.setString(_avatarKey, photo);
+        resetInitializationFlag();
+        await init();
+      }
+    } catch (e) {
+      debugPrint('Errore in signInWithGoogle: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> signOut() async {
+    try {
+      await _authService.signOut();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_nameKey);
+      await prefs.remove(_avatarKey);
+      _user = null;
+      resetInitializationFlag();
+      await init();
+    } catch (e) {
+      debugPrint('Errore in signOut: $e');
+      rethrow;
+    }
   }
 }

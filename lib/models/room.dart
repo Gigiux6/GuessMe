@@ -12,7 +12,7 @@ class Room {
   final int turnIndex;
   final List<String> turnOrder;
   final Map<String, Player> players;
-  final String? presetPack;
+  final String presetPack;
   final String? lastSystemMessage;
   final int characterChangesLimit;
   final int timeLimit;
@@ -30,7 +30,7 @@ class Room {
     required this.turnIndex,
     required this.turnOrder,
     required this.players,
-    this.presetPack,
+    this.presetPack = 'cinema',
     this.lastSystemMessage,
     this.characterChangesLimit = 0,
     this.timeLimit = 60,
@@ -61,7 +61,7 @@ class Room {
       turnIndex: map['turnIndex'] ?? 0,
       turnOrder: map['turnOrder'] != null ? List<String>.from(map['turnOrder'] as List<dynamic>) : [],
       players: players,
-      presetPack: map['presetPack'],
+      presetPack: map['presetPack'] ?? 'cinema',
       lastSystemMessage: map['lastSystemMessage'],
       characterChangesLimit: map['characterChangesLimit'] ?? 0,
       timeLimit: map['timeLimit'] ?? 60,

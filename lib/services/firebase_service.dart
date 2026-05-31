@@ -1,62 +1,84 @@
-import 'package:firebase_database/firebase_database.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:rxdart/rxdart.dart';
 import '../models/room.dart';
 import '../models/player.dart';
 
 class FirebaseService {
-  final DatabaseReference _db = FirebaseDatabase.instance.ref();
-  int _serverTimeOffset = 0;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final int _serverTimeOffset = 0;
   int get serverTimeOffset => _serverTimeOffset;
 
-  FirebaseService() {
-    _db.child('.info/serverTimeOffset').onValue.listen((event) {
-      if (event.snapshot.value != null) {
-        _serverTimeOffset = (event.snapshot.value as num).toInt();
-      }
-    });
-  }
+  FirebaseService();
 
   int get synchronizedTime => DateTime.now().millisecondsSinceEpoch + _serverTimeOffset;
 
   Stream<Room?> getRoomStream(String roomId) {
-    return _db.child('rooms/$roomId').onValue.map((event) {
-      if (event.snapshot.value != null) {
-        return Room.fromMap(roomId, event.snapshot.value as Map<dynamic, dynamic>);
-      }
-      return null;
-    });
+    final roomDocStream = _firestore.collection('rooms').doc(roomId).snapshots();
+    final playersColStream = _firestore.collection('rooms').doc(roomId).collection('players').snapshots();
+
+    return Rx.combineLatest2<DocumentSnapshot<Map<String, dynamic>>, QuerySnapshot<Map<String, dynamic>>, Room?>(
+      roomDocStream,
+      playersColStream,
+      (roomDoc, playersCol) {
+        if (!roomDoc.exists) return null;
+        
+        final roomData = roomDoc.data() ?? {};
+        
+        // Build players map
+        Map<String, Map<String, dynamic>> playersMaps = {};
+        for (var doc in playersCol.docs) {
+          playersMaps[doc.id] = doc.data();
+        }
+        
+        // Construct Room object from the map
+        final Map<String, dynamic> fullRoomMap = Map<String, dynamic>.from(roomData);
+        fullRoomMap['players'] = playersMaps;
+
+        return Room.fromMap(roomId, fullRoomMap);
+      },
+    );
   }
 
   Future<void> createRoom(Room room) async {
-    await _db.child('rooms/${room.id}').set(room.toMap());
+    final batch = _firestore.batch();
+    
+    final roomRef = _firestore.collection('rooms').doc(room.id);
+    final roomData = room.toMap();
+    roomData.remove('players'); // players go to subcollection
+    
+    batch.set(roomRef, roomData);
+    
+    room.players.forEach((playerId, player) {
+      final playerRef = roomRef.collection('players').doc(playerId);
+      batch.set(playerRef, player.toMap());
+    });
+    
+    await batch.commit();
   }
 
   Future<bool> joinRoom(String roomId, Player player) async {
-    final roomSnapshot = await _db.child('rooms/$roomId').get();
-    if (!roomSnapshot.exists || roomSnapshot.child('hostId').value == null) {
+    final roomRef = _firestore.collection('rooms').doc(roomId);
+    final roomSnap = await roomRef.get();
+    if (!roomSnap.exists || roomSnap.data()?['hostId'] == null) {
       return false;
     }
 
-    // Check if player already exists to preserve identity and saved status
-    final playerSnapshot = await _db.child('rooms/$roomId/players/${player.id}').get();
-    if (playerSnapshot.exists) {
-      await _db.child('rooms/$roomId/players/${player.id}').update({
+    final playerRef = roomRef.collection('players').doc(player.id);
+    final playerSnap = await playerRef.get();
+    if (playerSnap.exists) {
+      await playerRef.update({
         'name': player.name,
         'avatarUrl': player.avatarUrl,
       });
     } else {
-      await _db.child('rooms/$roomId/players/${player.id}').set(player.toMap());
+      await playerRef.set(player.toMap());
     }
     
-    // Removed onDisconnect().remove() to allow rejoining after backgrounding/minimizing app
-    
-    final snapshot = await _db.child('rooms/$roomId/turnOrder').get();
-    List<String> turnOrder = [];
-    if (snapshot.value != null) {
-      turnOrder = List<String>.from(snapshot.value as List<dynamic>);
-    }
+    final List<dynamic>? currentTurnOrder = roomSnap.data()?['turnOrder'];
+    List<String> turnOrder = currentTurnOrder != null ? List<String>.from(currentTurnOrder) : [];
     if (!turnOrder.contains(player.id)) {
       turnOrder.add(player.id);
-      await _db.child('rooms/$roomId/turnOrder').set(turnOrder);
+      await roomRef.update({'turnOrder': turnOrder});
     }
     return true;
   }
@@ -65,38 +87,39 @@ class FirebaseService {
     Map<String, dynamic> updates = {'status': status.name};
     if (mode != null) updates['mode'] = mode.name;
     if (presetPack != null) updates['presetPack'] = presetPack;
-    await _db.child('rooms/$roomId').update(updates);
+    await _firestore.collection('rooms').doc(roomId).update(updates);
   }
 
   Future<void> updateRoomSettings(String roomId, Map<String, dynamic> settings) async {
-    await _db.child('rooms/$roomId').update(settings);
+    await _firestore.collection('rooms').doc(roomId).update(settings);
   }
 
   Future<void> updatePlayer(String roomId, String playerId, Map<String, dynamic> updates) async {
-    await _db.child('rooms/$roomId/players/$playerId').update(updates);
+    await _firestore.collection('rooms').doc(roomId).collection('players').doc(playerId).update(updates);
   }
 
   Future<void> submitCustomIdentity(String roomId, String playerId, Map<String, dynamic> submission) async {
-    await _db.child('rooms/$roomId/submissions/$playerId').set(submission);
+    await _firestore.collection('rooms').doc(roomId).collection('submissions').doc(playerId).set(submission);
   }
 
   Future<Map<String, dynamic>> getSubmissions(String roomId) async {
-    final snapshot = await _db.child('rooms/$roomId/submissions').get();
-    if (snapshot.value != null) {
-      return Map<String, dynamic>.from(snapshot.value as Map<dynamic, dynamic>);
+    final snapshot = await _firestore.collection('rooms').doc(roomId).collection('submissions').get();
+    Map<String, dynamic> submissions = {};
+    for (var doc in snapshot.docs) {
+      submissions[doc.id] = doc.data();
     }
-    return {};
+    return submissions;
   }
 
   Future<void> savePlayer(String roomId, String playerId) async {
-    await _db.child('rooms/$roomId/players/$playerId').update({
+    await _firestore.collection('rooms').doc(roomId).collection('players').doc(playerId).update({
       'isSaved': true,
-      'savedAt': ServerValue.timestamp,
+      'savedAt': DateTime.now().millisecondsSinceEpoch,
     });
   }
 
   Future<void> passTurn(String roomId, int newTurnIndex) async {
-    await _db.child('rooms/$roomId').update({'turnIndex': newTurnIndex});
+    await _firestore.collection('rooms').doc(roomId).update({'turnIndex': newTurnIndex});
   }
 
   Future<void> executeTimedTurnEnd(
@@ -105,112 +128,150 @@ class FirebaseService {
     Map<String, dynamic> playersUpdates, 
     Map<String, dynamic> roomUpdates
   ) async {
-    Map<String, dynamic> updates = {};
+    final batch = _firestore.batch();
     
-    playersUpdates.forEach((path, value) {
-      updates['players/$path'] = value;
+    final roomRef = _firestore.collection('rooms').doc(roomId);
+    Map<String, dynamic> finalRoomUpdates = Map<String, dynamic>.from(roomUpdates);
+    finalRoomUpdates['turnIndex'] = nextTurnIndex;
+    finalRoomUpdates['timerEndTime'] = null;
+    finalRoomUpdates['timerType'] = null;
+    batch.update(roomRef, finalRoomUpdates);
+    
+    Map<String, Map<String, dynamic>> groupedPlayerUpdates = {};
+    playersUpdates.forEach((key, value) {
+      final parts = key.split('/');
+      final playerId = parts[0];
+      final field = parts[1];
+      groupedPlayerUpdates.putIfAbsent(playerId, () => {})[field] = value;
     });
     
-    roomUpdates.forEach((key, value) {
-      updates[key] = value;
+    groupedPlayerUpdates.forEach((playerId, fields) {
+      final playerRef = roomRef.collection('players').doc(playerId);
+      batch.update(playerRef, fields);
     });
     
-    updates['turnIndex'] = nextTurnIndex;
-    updates['timerEndTime'] = null;
-    updates['timerType'] = null;
-    
-    await _db.child('rooms/$roomId').update(updates);
+    await batch.commit();
   }
 
   Future<void> syncTimer(String roomId, int? endTime, String? type) async {
-    await _db.child('rooms/$roomId').update({
+    await _firestore.collection('rooms').doc(roomId).update({
       'timerEndTime': endTime,
       'timerType': type,
     });
   }
 
   Future<void> assignIdentities(String roomId, Map<String, Map<String, dynamic>> assignments, {int initialChanges = 0}) async {
-    Map<String, dynamic> updates = {};
+    final batch = _firestore.batch();
+    final roomRef = _firestore.collection('rooms').doc(roomId);
+    
     assignments.forEach((playerId, data) {
-      updates['players/$playerId/identityName'] = data['identityName'];
-      updates['players/$playerId/remainingChanges'] = initialChanges;
+      final playerRef = roomRef.collection('players').doc(playerId);
+      Map<String, dynamic> updates = {
+        'identityName': data['identityName'],
+        'remainingChanges': initialChanges,
+      };
       if (data['identityImageUrl'] != null) {
-        updates['players/$playerId/identityImageUrl'] = data['identityImageUrl'];
+        updates['identityImageUrl'] = data['identityImageUrl'];
       }
+      batch.update(playerRef, updates);
     });
-    await _db.child('rooms/$roomId').update(updates);
+    
+    await batch.commit();
   }
 
   Future<void> resetRoomForNewGame(String roomId) async {
-    final snapshot = await _db.child('rooms/$roomId/players').get();
-    if (snapshot.value != null) {
-      Map<dynamic, dynamic> players = snapshot.value as Map<dynamic, dynamic>;
-      Map<String, dynamic> updates = {};
-      
-      players.forEach((key, value) {
-        updates['players/$key/identityName'] = null;
-        updates['players/$key/identityImageUrl'] = null;
-        updates['players/$key/isSaved'] = false;
-        updates['players/$key/savedAt'] = null;
-        updates['players/$key/remainingChanges'] = 0;
-        updates['players/$key/score'] = 0;
+    final roomRef = _firestore.collection('rooms').doc(roomId);
+    final playersSnap = await roomRef.collection('players').get();
+    
+    final batch = _firestore.batch();
+    
+    for (var doc in playersSnap.docs) {
+      batch.update(doc.reference, {
+        'identityName': null,
+        'identityImageUrl': null,
+        'isSaved': false,
+        'savedAt': null,
+        'remainingChanges': 0,
+        'score': 0,
       });
-      
-      updates['status'] = RoomStatus.lobby.name;
-      updates['turnIndex'] = 0;
-      updates['submissions'] = null;
-      updates['currentRound'] = 1;
-      updates['isOvertime'] = false;
-      updates['timerEndTime'] = null;
-      updates['timerType'] = null;
-      
-      await _db.child('rooms/$roomId').update(updates);
     }
+    
+    final submissionsSnap = await roomRef.collection('submissions').get();
+    for (var doc in submissionsSnap.docs) {
+      batch.delete(doc.reference);
+    }
+    
+    batch.update(roomRef, {
+      'status': RoomStatus.lobby.name,
+      'turnIndex': 0,
+      'currentRound': 1,
+      'isOvertime': false,
+      'timerEndTime': null,
+      'timerType': null,
+    });
+    
+    await batch.commit();
   }
 
   Future<void> removePlayer(String roomId, String playerId) async {
-    await _db.child('rooms/$roomId/players/$playerId').remove();
+    final roomRef = _firestore.collection('rooms').doc(roomId);
+    await roomRef.collection('players').doc(playerId).delete();
     
-    final snapshot = await _db.child('rooms/$roomId/turnOrder').get();
-    if (snapshot.value != null) {
-      List<String> turnOrder = List<String>.from(snapshot.value as List<dynamic>);
-      turnOrder.remove(playerId);
-      await _db.child('rooms/$roomId/turnOrder').set(turnOrder);
+    final roomSnap = await roomRef.get();
+    if (roomSnap.exists) {
+      final List<dynamic>? currentTurnOrder = roomSnap.data()?['turnOrder'];
+      if (currentTurnOrder != null) {
+        List<String> turnOrder = List<String>.from(currentTurnOrder);
+        turnOrder.remove(playerId);
+        await roomRef.update({'turnOrder': turnOrder});
+      }
     }
   }
 
   Future<void> deleteRoom(String roomId) async {
-    await _db.child('rooms/$roomId').remove();
+    final roomRef = _firestore.collection('rooms').doc(roomId);
+    
+    final playersSnap = await roomRef.collection('players').get();
+    final submissionsSnap = await roomRef.collection('submissions').get();
+    
+    final batch = _firestore.batch();
+    for (var doc in playersSnap.docs) {
+      batch.delete(doc.reference);
+    }
+    for (var doc in submissionsSnap.docs) {
+      batch.delete(doc.reference);
+    }
+    
+    batch.delete(roomRef);
+    await batch.commit();
   }
 
-  // User Profile Methods
   Future<void> updateUserProfile(String uid, Map<String, dynamic> data) async {
-    await _db.child('users/$uid').update(data);
+    await _firestore.collection('users').doc(uid).set(data, SetOptions(merge: true));
   }
 
   Future<Map<dynamic, dynamic>?> getUserProfile(String uid) async {
-    final snapshot = await _db.child('users/$uid').get();
-    if (snapshot.exists) {
-      return snapshot.value as Map<dynamic, dynamic>;
-    }
-    return null;
+    final snap = await _firestore.collection('users').doc(uid).get();
+    return snap.data();
   }
 
   Future<void> incrementGamesWon(String uid) async {
-    final ref = _db.child('users/$uid/gamesWon');
-    final snapshot = await ref.get();
-    int current = 0;
-    if (snapshot.exists) {
-      current = (snapshot.value as num).toInt();
-    }
-    await ref.set(current + 1);
+    final userRef = _firestore.collection('users').doc(uid);
+    await _firestore.runTransaction((transaction) async {
+      final snap = await transaction.get(userRef);
+      int current = 0;
+      if (snap.exists) {
+        current = snap.data()?['gamesWon'] ?? 0;
+      }
+      transaction.set(userRef, {'gamesWon': current + 1}, SetOptions(merge: true));
+    });
   }
 
   Future<void> sendSystemMessage(String roomId, String text) async {
-    await _db.child('rooms/$roomId').update({'lastSystemMessage': text});
+    await _firestore.collection('rooms').doc(roomId).update({'lastSystemMessage': text});
   }
 
   Future<void> cancelOnDisconnect(String roomId, String playerId) async {
-    await _db.child('rooms/$roomId/players/$playerId').onDisconnect().cancel();
+    // Placeholder for Firestore presence
   }
 }

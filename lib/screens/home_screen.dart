@@ -178,7 +178,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Text(
                       userProvider.t('app_title'),
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.displayLarge,
+                      style: Theme.of(context).textTheme.displayLarge?.copyWith(fontSize: 46),
                     ),
                   ),
                   const SizedBox(height: 40),
@@ -191,6 +191,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Container(
                         width: 100,
                         height: 100,
+                        clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.black, width: 3),
                           borderRadius: BorderRadius.circular(50),
@@ -242,9 +243,23 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 40),
                     TextField(
                       controller: _roomController,
+                      maxLength: 6,
+                      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
                       decoration: InputDecoration(
+                        counterText: "",
+                        filled: true,
+                        fillColor: Colors.white,
                         labelText: userProvider.t('room_code'),
-                        prefixIcon: const Icon(Icons.meeting_room),
+                        labelStyle: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                        prefixIcon: const Icon(Icons.meeting_room, color: Colors.black),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Colors.black, width: 2),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Colors.black, width: 2),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20),

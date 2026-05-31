@@ -1,0 +1,19 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Regole per le foto profilo degli utenti
+    match /profiles/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null 
+                   && request.auth.token.firebase.sign_in_provider != 'anonymous'
+                   && fileName == request.auth.uid + '.jpg';
+    }
+    
+    // Regole per le foto dei personaggi personalizzati della modalità Custom
+    match /custom_identities/{roomId}/{imageId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}

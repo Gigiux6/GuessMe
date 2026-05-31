@@ -22,11 +22,23 @@ class Player {
   });
 
   factory Player.fromMap(String id, Map<dynamic, dynamic> map) {
+    final savedAtVal = map['savedAt'];
+    int? savedAtMs;
+    if (savedAtVal != null) {
+      if (savedAtVal is int) {
+        savedAtMs = savedAtVal;
+      } else {
+        try {
+          savedAtMs = (savedAtVal as dynamic).millisecondsSinceEpoch;
+        } catch (_) {}
+      }
+    }
+
     return Player(
       id: id,
       name: map['name'] ?? '',
       isSaved: map['isSaved'] ?? false,
-      savedAt: map['savedAt'],
+      savedAt: savedAtMs,
       identityName: map['identityName'],
       identityImageUrl: map['identityImageUrl'],
       avatarUrl: map['avatarUrl'],
