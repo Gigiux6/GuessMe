@@ -56,9 +56,23 @@ class _SetupCustomScreenState extends State<SetupCustomScreen> {
                 const SizedBox(height: 40),
                 TextField(
                   controller: _identityController,
+                  maxLength: 30,
+                  style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
                   decoration: InputDecoration(
+                    counterText: "",
                     labelText: context.read<UserProvider>().t('identity_name'),
-                    prefixIcon: const Icon(Icons.person_pin),
+                    labelStyle: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                    prefixIcon: const Icon(Icons.person_pin, color: Colors.black),
+                    filled: true,
+                    fillColor: Colors.white,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Colors.black, width: 2),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Colors.black, width: 2),
+                    ),
                   ),
                 ),
                 const Spacer(),

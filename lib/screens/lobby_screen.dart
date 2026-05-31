@@ -254,7 +254,13 @@ class _LobbyScreenState extends State<LobbyScreen> {
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 16),
-              ...room.players.values.map((player) => Card(
+              ...room.players.values.map((player) => Container(
+                    margin: const EdgeInsets.only(bottom: 8.0),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.black, width: 2),
+                    ),
                     child: ListTile(
                       leading: CircleAvatar(
                         backgroundColor: Colors.transparent,
@@ -263,11 +269,14 @@ class _LobbyScreenState extends State<LobbyScreen> {
                             imageUrl: player.avatarUrl ?? '',
                             fit: BoxFit.cover,
                             placeholder: (context, url) => const CircularProgressIndicator(),
-                            errorWidget: (context, url, error) => const Icon(Icons.person),
+                            errorWidget: (context, url, error) => const Icon(Icons.person, color: Colors.black),
                           ),
                         ),
                       ),
-                      title: Text(player.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      title: Text(
+                        player.name, 
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black)
+                      ),
                       trailing: player.id == room.hostId ? const Icon(Icons.star, color: Colors.amber) : null,
                     ),
                   )),
@@ -308,6 +317,22 @@ class _LobbyScreenState extends State<LobbyScreen> {
     final userProvider = context.read<UserProvider>();
     final room = gameProvider.currentRoom;
     
+    final segmentedButtonStyle = ButtonStyle(
+      backgroundColor: WidgetStateProperty.resolveWith<Color?>((states) {
+        if (states.contains(WidgetState.selected)) {
+          return Colors.black;
+        }
+        return Colors.white;
+      }),
+      foregroundColor: WidgetStateProperty.resolveWith<Color?>((states) {
+        if (states.contains(WidgetState.selected)) {
+          return Colors.white;
+        }
+        return Colors.black;
+      }),
+      side: WidgetStateProperty.all(const BorderSide(color: Colors.black, width: 2)),
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -315,23 +340,49 @@ class _LobbyScreenState extends State<LobbyScreen> {
         const SizedBox(height: 20),
         Text(userProvider.t('character_changes')),
         const SizedBox(height: 10),
-        DropdownButton<int>(
-          value: room?.characterChangesLimit ?? 0,
-          isExpanded: true,
-          items: [0, 1, 2, 3].map((val) => DropdownMenuItem(
-            value: val,
-            child: Text(val.toString()),
-          )).toList(),
-          onChanged: isHost ? (val) {
-            if (val != null) {
-              gameProvider.updateCharacterChangesLimit(val);
-            }
-          } : null,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.black, width: 2),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              value: room?.characterChangesLimit ?? 0,
+              isExpanded: true,
+              dropdownColor: Colors.white,
+              style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+              iconEnabledColor: Colors.black,
+              iconDisabledColor: Colors.black,
+              selectedItemBuilder: (BuildContext context) {
+                return [0, 1, 2, 3].map<Widget>((int value) {
+                  return Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      value.toString(),
+                      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                    ),
+                  );
+                }).toList();
+              },
+              items: [0, 1, 2, 3].map((val) => DropdownMenuItem(
+                value: val,
+                child: Text(val.toString(), style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+              )).toList(),
+              onChanged: isHost ? (val) {
+                if (val != null) {
+                  gameProvider.updateCharacterChangesLimit(val);
+                }
+              } : null,
+            ),
+          ),
         ),
         const SizedBox(height: 20),
         Text(userProvider.t('game_mode')),
         const SizedBox(height: 10),
         SegmentedButton<GameMode>(
+          style: segmentedButtonStyle,
           segments: [
             ButtonSegment(value: GameMode.preset, label: Text(userProvider.t('preset_mode'), style: const TextStyle(fontSize: 12))),
             ButtonSegment(value: GameMode.timed, label: Text(userProvider.t('timed_mode'), style: const TextStyle(fontSize: 12))),
@@ -347,6 +398,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
           Text(userProvider.t('time_limit')),
           const SizedBox(height: 10),
           SegmentedButton<int>(
+            style: segmentedButtonStyle,
             segments: const [
               ButtonSegment(value: 60, label: Text('1 min')),
               ButtonSegment(value: 90, label: Text('1.5 min')),
@@ -359,6 +411,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
           Text(userProvider.t('target_points')),
           const SizedBox(height: 10),
           SegmentedButton<int>(
+            style: segmentedButtonStyle,
             segments: const [
               ButtonSegment(value: 3, label: Text('3')),
               ButtonSegment(value: 5, label: Text('5')),
@@ -374,22 +427,35 @@ class _LobbyScreenState extends State<LobbyScreen> {
           const SizedBox(height: 10),
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: GamePacksData.packs.map((pack) => Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: ChoiceChip(
-                label: Container(
-                  width: double.infinity,
-                  alignment: Alignment.center,
-                  child: Text('${pack.icon} ${userProvider.t(pack.id).toUpperCase()}', style: const TextStyle(fontWeight: FontWeight.bold)),
+            children: GamePacksData.packs.map((pack) {
+              final isSelected = (room?.presetPack ?? 'cinema') == pack.id;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: ChoiceChip(
+                  backgroundColor: Colors.white,
+                  selectedColor: Colors.black,
+                  disabledColor: isSelected ? Colors.black : Colors.white,
+                  side: const BorderSide(color: Colors.black, width: 2),
+                  label: Container(
+                    width: double.infinity,
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${pack.icon} ${userProvider.t(pack.id).toUpperCase()}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: isSelected ? Colors.white : Colors.black,
+                      ),
+                    ),
+                  ),
+                  selected: isSelected,
+                  onSelected: isHost ? (selected) {
+                    if (selected) {
+                      gameProvider.updateRoomSettings(presetPack: pack.id);
+                    }
+                  } : null,
                 ),
-                selected: (room?.presetPack ?? 'cinema') == pack.id,
-                onSelected: isHost ? (selected) {
-                  if (selected) {
-                    gameProvider.updateRoomSettings(presetPack: pack.id);
-                  }
-                } : null,
-              ),
-            )).toList(),
+              );
+            }).toList(),
           ),
         ],
       ],

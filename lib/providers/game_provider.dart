@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'user_provider.dart';
 import '../data/translations.dart';
+import '../services/profile_storage_service.dart';
 
 class GameProvider with ChangeNotifier {
   final FirebaseService _firebaseService = FirebaseService();
@@ -45,30 +46,39 @@ class GameProvider with ChangeNotifier {
 
   void listenToRoom(String roomId) {
     _roomSubscription?.cancel();
-    _roomSubscription = _firebaseService.getRoomStream(roomId).listen((room) {
-      if (room == null) {
-        // Se la stanza sparisce ma noi pensavamo di esserci dentro, allora chiudiamo
-        if (currentRoom != null) {
-          _roomSubscription?.cancel();
-          currentRoom = null;
-          currentPlayerId = null;
+    _roomSubscription = _firebaseService.getRoomStream(roomId).listen(
+      (room) {
+        if (room == null) {
+          // Se la stanza sparisce ma noi pensavamo di esserci dentro, allora chiudiamo
+          if (currentRoom != null) {
+            _roomSubscription?.cancel();
+            currentRoom = null;
+            currentPlayerId = null;
+            notifyListeners();
+          }
+        } else {
+          currentRoom = room;
+          
+          // Se siamo l'host e la partita è in corso, controlliamo se è finita 
+          // (es. qualcuno è uscito e ne è rimasto solo uno che deve indovinare)
+          if (isHost && room.status == RoomStatus.playing) {
+            int unsavedCount = room.players.values.where((p) => !p.isSaved).length;
+            if (unsavedCount <= 1) {
+              _firebaseService.updateRoomStatus(room.id, RoomStatus.finished);
+            }
+          }
+          
           notifyListeners();
         }
-      } else {
-        currentRoom = room;
-        
-        // Se siamo l'host e la partita è in corso, controlliamo se è finita 
-        // (es. qualcuno è uscito e ne è rimasto solo uno che deve indovinare)
-        if (isHost && room.status == RoomStatus.playing) {
-          int unsavedCount = room.players.values.where((p) => !p.isSaved).length;
-          if (unsavedCount <= 1) {
-            _firebaseService.updateRoomStatus(room.id, RoomStatus.finished);
-          }
-        }
-        
+      },
+      onError: (error) {
+        debugPrint('Firestore stream error: $error');
+        _roomSubscription?.cancel();
+        currentRoom = null;
+        currentPlayerId = null;
         notifyListeners();
-      }
-    });
+      },
+    );
   }
 
   Future<void> updateRoomSettings({GameMode? mode, String? presetPack, int? characterChangesLimit, int? timeLimit, int? targetPoints}) async {
@@ -214,7 +224,7 @@ class GameProvider with ChangeNotifier {
     final presetPack = currentRoom!.presetPack;
 
     if (mode == GameMode.preset || mode == GameMode.timed) {
-      await _assignPresetIdentities(presetPack ?? 'cinema');
+      await _assignPresetIdentities(presetPack);
       await _firebaseService.updateRoomStatus(currentRoom!.id, RoomStatus.playing, mode, presetPack);
     } else {
       await _firebaseService.updateRoomStatus(currentRoom!.id, RoomStatus.setup, mode);
@@ -226,6 +236,8 @@ class GameProvider with ChangeNotifier {
     if (currentRoom == null) return;
     _setLoading(true);
     _audioPlayer.play(AssetSource('audio/whoosh.mp3'), volume: 1.0 * volumeMultiplier);
+    // Delete any uploaded custom images for this session
+    await ProfileStorageService().deleteCustomRoomImages(currentRoom!.id);
     await _firebaseService.resetRoomForNewGame(currentRoom!.id);
     _setLoading(false);
   }
@@ -234,6 +246,8 @@ class GameProvider with ChangeNotifier {
     if (currentRoom == null || currentPlayerId == null) return;
     String roomId = currentRoom!.id;
     if (isHost) {
+      // Clean up custom images
+      await ProfileStorageService().deleteCustomRoomImages(roomId);
       await _firebaseService.deleteRoom(roomId);
     } else {
       await _firebaseService.cancelOnDisconnect(roomId, currentPlayerId!);
@@ -292,7 +306,7 @@ class GameProvider with ChangeNotifier {
 
     final pack = GamePacksData.packs.firstWhere(
       (p) => p.id == currentRoom!.presetPack, 
-      orElse: () => GamePacksData.packs.first
+      orElse: () => GamePacksData.packs.firstWhere((p) => p.id == 'cinema', orElse: () => GamePacksData.packs.first)
     );
     
     // Get all current identity names to avoid duplicates
@@ -405,7 +419,7 @@ class GameProvider with ChangeNotifier {
     
     final pack = GamePacksData.packs.firstWhere(
       (p) => p.id == currentRoom!.presetPack, 
-      orElse: () => GamePacksData.packs.first
+      orElse: () => GamePacksData.packs.firstWhere((p) => p.id == 'cinema', orElse: () => GamePacksData.packs.first)
     );
     
     final currentIdentities = currentRoom!.players.values
