@@ -36,12 +36,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     'https://api.dicebear.com/7.x/adventurer/png?seed=Healer',
   ];
 
+  String? _initError;
+
   @override
   void initState() {
     super.initState();
-    final user = context.read<UserProvider>().user;
-    _nameController = TextEditingController(text: user?.name ?? '');
-    _selectedAvatar = user?.avatarUrl;
+    try {
+      final user = context.read<UserProvider>().user;
+      _nameController = TextEditingController(text: user?.name ?? '');
+      _selectedAvatar = user?.avatarUrl;
+    } catch (e, stack) {
+      _initError = 'Init Error: $e\n$stack';
+    }
   }
 
   @override
@@ -829,13 +835,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final userProvider = context.watch<UserProvider>();
-    final user = userProvider.user;
-    final pink = Theme.of(context).primaryColor;
-    final cyan = Theme.of(context).colorScheme.secondary;
-    final isDark = userProvider.isDarkMode;
+    if (_initError != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text("Diagnostic Error")),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Text(_initError!, style: const TextStyle(color: Colors.red, fontFamily: 'monospace')),
+        ),
+      );
+    }
+    try {
+      final userProvider = context.watch<UserProvider>();
+      final user = userProvider.user;
+      final pink = Theme.of(context).primaryColor;
+      final cyan = Theme.of(context).colorScheme.secondary;
+      final isDark = userProvider.isDarkMode;
 
-    return Scaffold(
+      return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(userProvider.t('edit_profile')),
@@ -1034,6 +1050,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
       ),
     );
+    } catch (e, stack) {
+      return Scaffold(
+        appBar: AppBar(title: const Text("Build Error")),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Text("Build Error: $e\n$stack", style: const TextStyle(color: Colors.red, fontFamily: 'monospace')),
+        ),
+      );
+    }
   }
 
   String _getFriendlyErrorMessage(dynamic e, UserProvider userProvider) {
