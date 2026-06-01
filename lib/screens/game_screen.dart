@@ -470,6 +470,7 @@ class _GameScreenState extends State<GameScreen> {
     final userProvider = context.read<UserProvider>();
     final room = gameProvider.currentRoom!;
     final me = room.players[gameProvider.currentPlayerId!];
+    final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
 
     String roundText = room.isOvertime 
         ? userProvider.t('overtime_round', args: {'round': room.currentRound.toString()})
@@ -481,7 +482,7 @@ class _GameScreenState extends State<GameScreen> {
           key: const ValueKey('active_view'),
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (room.mode == GameMode.timed)
+            if (room.mode == GameMode.timed && !isKeyboardOpen)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8.0),
                 child: Center(
@@ -499,34 +500,37 @@ class _GameScreenState extends State<GameScreen> {
                   ),
                 ),
               ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16.0),
-              child: Center(
-                child: (me != null && me.remainingChanges > 0 && room.mode == GameMode.preset)
-                  ? ElevatedButton.icon(
-                      onPressed: gameProvider.isLoading 
-                        ? null 
-                        : () => gameProvider.changeCharacter(userProvider.language),
-                      icon: const Icon(Icons.refresh),
-                      label: Text(
-                        '${userProvider.t('change_character_btn')} (${userProvider.t('remaining_changes', args: {'count': me.remainingChanges.toString()})})',
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.pink,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      ),
-                    )
-                  : const SizedBox(height: 48), // Placeholder
+            if (!isKeyboardOpen)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: Center(
+                  child: (me != null && me.remainingChanges > 0 && room.mode == GameMode.preset)
+                    ? ElevatedButton.icon(
+                        onPressed: gameProvider.isLoading 
+                          ? null 
+                          : () => gameProvider.changeCharacter(userProvider.language),
+                        icon: const Icon(Icons.refresh),
+                        label: Text(
+                          '${userProvider.t('change_character_btn')} (${userProvider.t('remaining_changes', args: {'count': me.remainingChanges.toString()})})',
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.pink,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        ),
+                      )
+                    : const SizedBox(height: 48), // Placeholder
+                ),
               ),
-            ),
-            Text(
-              context.read<UserProvider>().t('guess_instructions'),
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Theme.of(context).primaryColor),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
+            if (!isKeyboardOpen)
+              Text(
+                context.read<UserProvider>().t('guess_instructions'),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Theme.of(context).primaryColor),
+                textAlign: TextAlign.center,
+              ),
+            if (!isKeyboardOpen)
+              const SizedBox(height: 20),
             Expanded(
               child: TextField(
                 controller: _notesController,
@@ -712,7 +716,41 @@ class _GameScreenState extends State<GameScreen> {
         ),
         const SizedBox(height: 20),
         _buildCharacterName(context, activePlayer.identityName),
-        const SizedBox(height: 60),
+        const SizedBox(height: 20),
+        
+        if (!(activePlayer.isOnline ?? true))
+          Padding(
+            padding: const EdgeInsets.only(bottom: 20.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.wifi_off, color: Colors.red),
+                const SizedBox(width: 8),
+                const Text(
+                  'Giocatore offline',
+                  style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ],
+            ),
+          ),
+          
+        if (!(activePlayer.isOnline ?? true) && gameProvider.isHost)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 20.0),
+            child: Center(
+              child: ElevatedButton.icon(
+                onPressed: () => gameProvider.forcePassTurn(),
+                icon: const Icon(Icons.skip_next),
+                label: const Text('Forza Salto Turno'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+          ),
+          
+        const SizedBox(height: 40),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: FittedBox(

@@ -150,7 +150,7 @@ class GameOverScreen extends StatelessWidget {
                                   backgroundColor: Colors.grey.shade200,
                                   child: ClipOval(
                                     child: p.avatarUrl != null 
-                                      ? Image.network(p.avatarUrl!, fit: BoxFit.cover)
+                                      ? Image.network(p.avatarUrl!, fit: BoxFit.cover, width: 36, height: 36)
                                       : const Icon(Icons.person, size: 20),
                                   ),
                                 ),

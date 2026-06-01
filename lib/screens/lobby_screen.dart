@@ -268,6 +268,8 @@ class _LobbyScreenState extends State<LobbyScreen> {
                           child: CachedNetworkImage(
                             imageUrl: player.avatarUrl ?? '',
                             fit: BoxFit.cover,
+                            width: 40,
+                            height: 40,
                             placeholder: (context, url) => const CircularProgressIndicator(),
                             errorWidget: (context, url, error) => const Icon(Icons.person, color: Colors.black),
                           ),

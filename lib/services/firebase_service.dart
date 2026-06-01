@@ -1,10 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:rxdart/rxdart.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/foundation.dart';
 import '../models/room.dart';
 import '../models/player.dart';
+import 'dart:async';
 
 class FirebaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseDatabase _rtdb = FirebaseDatabase.instance;
+  
   final int _serverTimeOffset = 0;
   int get serverTimeOffset => _serverTimeOffset;
 
@@ -13,58 +17,39 @@ class FirebaseService {
   int get synchronizedTime => DateTime.now().millisecondsSinceEpoch + _serverTimeOffset;
 
   Stream<Room?> getRoomStream(String roomId) {
-    final roomDocStream = _firestore.collection('rooms').doc(roomId).snapshots();
-    final playersColStream = _firestore.collection('rooms').doc(roomId).collection('players').snapshots();
-
-    return Rx.combineLatest2<DocumentSnapshot<Map<String, dynamic>>, QuerySnapshot<Map<String, dynamic>>, Room?>(
-      roomDocStream,
-      playersColStream,
-      (roomDoc, playersCol) {
-        if (!roomDoc.exists) return null;
-        
-        final roomData = roomDoc.data() ?? {};
-        
-        // Build players map
-        Map<String, Map<String, dynamic>> playersMaps = {};
-        for (var doc in playersCol.docs) {
-          playersMaps[doc.id] = doc.data();
-        }
-        
-        // Construct Room object from the map
-        final Map<String, dynamic> fullRoomMap = Map<String, dynamic>.from(roomData);
-        fullRoomMap['players'] = playersMaps;
-
-        return Room.fromMap(roomId, fullRoomMap);
-      },
-    );
+    return _rtdb.ref('rooms/$roomId').onValue.map((event) {
+      if (event.snapshot.value == null) return null;
+      
+      final rawData = event.snapshot.value as Map;
+      final fullRoomMap = rawData.map((key, value) => MapEntry(key.toString(), value));
+      
+      // Ensure players map has string keys
+      if (fullRoomMap['players'] != null) {
+        final rawPlayers = fullRoomMap['players'] as Map;
+        fullRoomMap['players'] = rawPlayers.map((k, v) => MapEntry(k.toString(), v));
+      }
+      
+      return Room.fromMap(roomId, fullRoomMap);
+    });
   }
 
   Future<void> createRoom(Room room) async {
-    final batch = _firestore.batch();
-    
-    final roomRef = _firestore.collection('rooms').doc(room.id);
     final roomData = room.toMap();
-    roomData.remove('players'); // players go to subcollection
-    
-    batch.set(roomRef, roomData);
-    
-    room.players.forEach((playerId, player) {
-      final playerRef = roomRef.collection('players').doc(playerId);
-      batch.set(playerRef, player.toMap());
-    });
-    
-    await batch.commit();
+    await _rtdb.ref('rooms/${room.id}').set(roomData);
   }
 
   Future<bool> joinRoom(String roomId, Player player) async {
-    final roomRef = _firestore.collection('rooms').doc(roomId);
+    final roomRef = _rtdb.ref('rooms/$roomId');
     final roomSnap = await roomRef.get();
-    if (!roomSnap.exists || roomSnap.data()?['hostId'] == null) {
-      return false;
-    }
+    
+    if (!roomSnap.exists) return false;
+    
+    final data = roomSnap.value as Map?;
+    if (data == null || data['hostId'] == null) return false;
 
-    final playerRef = roomRef.collection('players').doc(player.id);
+    final playerRef = roomRef.child('players/${player.id}');
     final playerSnap = await playerRef.get();
+    
     if (playerSnap.exists) {
       await playerRef.update({
         'name': player.name,
@@ -74,52 +59,50 @@ class FirebaseService {
       await playerRef.set(player.toMap());
     }
     
-    final List<dynamic>? currentTurnOrder = roomSnap.data()?['turnOrder'];
-    List<String> turnOrder = currentTurnOrder != null ? List<String>.from(currentTurnOrder) : [];
-    if (!turnOrder.contains(player.id)) {
-      turnOrder.add(player.id);
-      await roomRef.update({'turnOrder': turnOrder});
-    }
     return true;
+  }
+
+  Future<void> syncTurnOrder(String roomId, List<String> turnOrder) async {
+    await _rtdb.ref('rooms/$roomId/turnOrder').set(turnOrder);
   }
 
   Future<void> updateRoomStatus(String roomId, RoomStatus status, [GameMode? mode, String? presetPack]) async {
     Map<String, dynamic> updates = {'status': status.name};
     if (mode != null) updates['mode'] = mode.name;
     if (presetPack != null) updates['presetPack'] = presetPack;
-    await _firestore.collection('rooms').doc(roomId).update(updates);
+    await _rtdb.ref('rooms/$roomId').update(updates);
   }
 
   Future<void> updateRoomSettings(String roomId, Map<String, dynamic> settings) async {
-    await _firestore.collection('rooms').doc(roomId).update(settings);
+    await _rtdb.ref('rooms/$roomId').update(settings);
   }
 
   Future<void> updatePlayer(String roomId, String playerId, Map<String, dynamic> updates) async {
-    await _firestore.collection('rooms').doc(roomId).collection('players').doc(playerId).update(updates);
+    await _rtdb.ref('rooms/$roomId/players/$playerId').update(updates);
   }
 
   Future<void> submitCustomIdentity(String roomId, String playerId, Map<String, dynamic> submission) async {
-    await _firestore.collection('rooms').doc(roomId).collection('submissions').doc(playerId).set(submission);
+    await _rtdb.ref('rooms/$roomId/submissions/$playerId').set(submission);
   }
 
   Future<Map<String, dynamic>> getSubmissions(String roomId) async {
-    final snapshot = await _firestore.collection('rooms').doc(roomId).collection('submissions').get();
-    Map<String, dynamic> submissions = {};
-    for (var doc in snapshot.docs) {
-      submissions[doc.id] = doc.data();
+    final snap = await _rtdb.ref('rooms/$roomId/submissions').get();
+    if (snap.exists && snap.value != null) {
+      final rawData = snap.value as Map;
+      return rawData.map((key, value) => MapEntry(key.toString(), value));
     }
-    return submissions;
+    return {};
   }
 
   Future<void> savePlayer(String roomId, String playerId) async {
-    await _firestore.collection('rooms').doc(roomId).collection('players').doc(playerId).update({
+    await _rtdb.ref('rooms/$roomId/players/$playerId').update({
       'isSaved': true,
       'savedAt': DateTime.now().millisecondsSinceEpoch,
     });
   }
 
   Future<void> passTurn(String roomId, int newTurnIndex) async {
-    await _firestore.collection('rooms').doc(roomId).update({'turnIndex': newTurnIndex});
+    await _rtdb.ref('rooms/$roomId').update({'turnIndex': newTurnIndex});
   }
 
   Future<void> executeTimedTurnEnd(
@@ -128,122 +111,74 @@ class FirebaseService {
     Map<String, dynamic> playersUpdates, 
     Map<String, dynamic> roomUpdates
   ) async {
-    final batch = _firestore.batch();
+    Map<String, dynamic> updates = {};
     
-    final roomRef = _firestore.collection('rooms').doc(roomId);
-    Map<String, dynamic> finalRoomUpdates = Map<String, dynamic>.from(roomUpdates);
-    finalRoomUpdates['turnIndex'] = nextTurnIndex;
-    finalRoomUpdates['timerEndTime'] = null;
-    finalRoomUpdates['timerType'] = null;
-    batch.update(roomRef, finalRoomUpdates);
+    roomUpdates.forEach((key, value) {
+      updates['rooms/$roomId/$key'] = value;
+    });
+    updates['rooms/$roomId/turnIndex'] = nextTurnIndex;
+    updates['rooms/$roomId/timerEndTime'] = null;
+    updates['rooms/$roomId/timerType'] = null;
     
-    Map<String, Map<String, dynamic>> groupedPlayerUpdates = {};
     playersUpdates.forEach((key, value) {
-      final parts = key.split('/');
-      final playerId = parts[0];
-      final field = parts[1];
-      groupedPlayerUpdates.putIfAbsent(playerId, () => {})[field] = value;
+      updates['rooms/$roomId/players/$key'] = value;
     });
     
-    groupedPlayerUpdates.forEach((playerId, fields) {
-      final playerRef = roomRef.collection('players').doc(playerId);
-      batch.update(playerRef, fields);
-    });
-    
-    await batch.commit();
+    await _rtdb.ref().update(updates);
   }
 
   Future<void> syncTimer(String roomId, int? endTime, String? type) async {
-    await _firestore.collection('rooms').doc(roomId).update({
+    await _rtdb.ref('rooms/$roomId').update({
       'timerEndTime': endTime,
       'timerType': type,
     });
   }
 
   Future<void> assignIdentities(String roomId, Map<String, Map<String, dynamic>> assignments, {int initialChanges = 0}) async {
-    final batch = _firestore.batch();
-    final roomRef = _firestore.collection('rooms').doc(roomId);
-    
+    Map<String, dynamic> updates = {};
     assignments.forEach((playerId, data) {
-      final playerRef = roomRef.collection('players').doc(playerId);
-      Map<String, dynamic> updates = {
-        'identityName': data['identityName'],
-        'remainingChanges': initialChanges,
-      };
+      updates['rooms/$roomId/players/$playerId/identityName'] = data['identityName'];
+      updates['rooms/$roomId/players/$playerId/remainingChanges'] = initialChanges;
       if (data['identityImageUrl'] != null) {
-        updates['identityImageUrl'] = data['identityImageUrl'];
+        updates['rooms/$roomId/players/$playerId/identityImageUrl'] = data['identityImageUrl'];
       }
-      batch.update(playerRef, updates);
     });
-    
-    await batch.commit();
+    await _rtdb.ref().update(updates);
   }
 
   Future<void> resetRoomForNewGame(String roomId) async {
-    final roomRef = _firestore.collection('rooms').doc(roomId);
-    final playersSnap = await roomRef.collection('players').get();
+    final roomSnap = await _rtdb.ref('rooms/$roomId/players').get();
+    Map<String, dynamic> updates = {};
     
-    final batch = _firestore.batch();
-    
-    for (var doc in playersSnap.docs) {
-      batch.update(doc.reference, {
-        'identityName': null,
-        'identityImageUrl': null,
-        'isSaved': false,
-        'savedAt': null,
-        'remainingChanges': 0,
-        'score': 0,
+    if (roomSnap.exists && roomSnap.value != null) {
+      final players = roomSnap.value as Map;
+      players.keys.forEach((playerId) {
+        updates['rooms/$roomId/players/$playerId/identityName'] = null;
+        updates['rooms/$roomId/players/$playerId/identityImageUrl'] = null;
+        updates['rooms/$roomId/players/$playerId/isSaved'] = false;
+        updates['rooms/$roomId/players/$playerId/savedAt'] = null;
+        updates['rooms/$roomId/players/$playerId/remainingChanges'] = 0;
+        updates['rooms/$roomId/players/$playerId/score'] = 0;
       });
     }
     
-    final submissionsSnap = await roomRef.collection('submissions').get();
-    for (var doc in submissionsSnap.docs) {
-      batch.delete(doc.reference);
-    }
+    updates['rooms/$roomId/submissions'] = null;
+    updates['rooms/$roomId/status'] = RoomStatus.lobby.name;
+    updates['rooms/$roomId/turnIndex'] = 0;
+    updates['rooms/$roomId/currentRound'] = 1;
+    updates['rooms/$roomId/isOvertime'] = false;
+    updates['rooms/$roomId/timerEndTime'] = null;
+    updates['rooms/$roomId/timerType'] = null;
     
-    batch.update(roomRef, {
-      'status': RoomStatus.lobby.name,
-      'turnIndex': 0,
-      'currentRound': 1,
-      'isOvertime': false,
-      'timerEndTime': null,
-      'timerType': null,
-    });
-    
-    await batch.commit();
+    await _rtdb.ref().update(updates);
   }
 
   Future<void> removePlayer(String roomId, String playerId) async {
-    final roomRef = _firestore.collection('rooms').doc(roomId);
-    await roomRef.collection('players').doc(playerId).delete();
-    
-    final roomSnap = await roomRef.get();
-    if (roomSnap.exists) {
-      final List<dynamic>? currentTurnOrder = roomSnap.data()?['turnOrder'];
-      if (currentTurnOrder != null) {
-        List<String> turnOrder = List<String>.from(currentTurnOrder);
-        turnOrder.remove(playerId);
-        await roomRef.update({'turnOrder': turnOrder});
-      }
-    }
+    await _rtdb.ref('rooms/$roomId/players/$playerId').remove();
   }
 
   Future<void> deleteRoom(String roomId) async {
-    final roomRef = _firestore.collection('rooms').doc(roomId);
-    
-    final playersSnap = await roomRef.collection('players').get();
-    final submissionsSnap = await roomRef.collection('submissions').get();
-    
-    final batch = _firestore.batch();
-    for (var doc in playersSnap.docs) {
-      batch.delete(doc.reference);
-    }
-    for (var doc in submissionsSnap.docs) {
-      batch.delete(doc.reference);
-    }
-    
-    batch.delete(roomRef);
-    await batch.commit();
+    await _rtdb.ref('rooms/$roomId').remove();
   }
 
   Future<void> updateUserProfile(String uid, Map<String, dynamic> data) async {
@@ -255,23 +190,40 @@ class FirebaseService {
     return snap.data();
   }
 
-  Future<void> incrementGamesWon(String uid) async {
-    final userRef = _firestore.collection('users').doc(uid);
-    await _firestore.runTransaction((transaction) async {
-      final snap = await transaction.get(userRef);
-      int current = 0;
-      if (snap.exists) {
-        current = snap.data()?['gamesWon'] ?? 0;
-      }
-      transaction.set(userRef, {'gamesWon': current + 1}, SetOptions(merge: true));
-    });
-  }
-
   Future<void> sendSystemMessage(String roomId, String text) async {
-    await _firestore.collection('rooms').doc(roomId).update({'lastSystemMessage': text});
+    await _rtdb.ref('rooms/$roomId').update({'lastSystemMessage': text});
   }
 
   Future<void> cancelOnDisconnect(String roomId, String playerId) async {
-    // Placeholder for Firestore presence
+    final playerRef = _rtdb.ref('rooms/$roomId/players/$playerId/isOnline');
+    await playerRef.onDisconnect().set(false);
+    await playerRef.set(true);
   }
+  
+  Future<void> finalizeGameAndSyncStats(String roomId, List<String> winners, List<String> allPlayers) async {
+    try {
+      final batch = _firestore.batch();
+
+      for (String playerId in allPlayers) {
+        final userRef = _firestore.collection('users').doc(playerId);
+        bool isWinner = winners.contains(playerId);
+        
+        batch.set(userRef, {
+          'gamesPlayed': FieldValue.increment(1),
+          if (isWinner) 'gamesWon': FieldValue.increment(1),
+        }, SetOptions(merge: true));
+      }
+
+      await batch.commit();
+      // NOTA: Non eliminiamo la stanza da RTDB qui per permettere ai client di vedere la schermata dei risultati.
+      // La stanza verrà eliminata quando l'host premerà il tasto "Esci" o "Gioca Ancora".
+      
+    } catch (e) {
+      debugPrint("Errore durante la sincronizzazione finale: $e");
+      rethrow;
+    }
+  }
+
+  // Deprecated - handled by finalizeGameAndSyncStats
+  Future<void> incrementGamesWon(String uid) async {}
 }
