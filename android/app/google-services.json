@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "468446089858",
+    "firebase_url": "https://guess-me-bfd58-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "guess-me-bfd58",
+    "storage_bucket": "guess-me-bfd58.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:468446089858:android:15d3a509f253da79201a9b",
+        "android_client_info": {
+          "package_name": "com.example.guess_me"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "468446089858-1gourghbnk8hbc8eocajs93277l0qtpu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.guess_me",
+            "certificate_hash": "a0cea5340ae46e9c2697f50a7bc21d88d9d21d25"
+          }
+        },
+        {
+          "client_id": "468446089858-t12ce5nbf846si3sve3jj3q9nqs718p3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDmA0d3DkuGzqvKYSQURPLraTLx8LA0Hek"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "468446089858-t12ce5nbf846si3sve3jj3q9nqs718p3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

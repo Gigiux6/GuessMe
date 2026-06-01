@@ -32,6 +32,7 @@ class GameProvider with ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
   int get synchronizedTime => _firebaseService.synchronizedTime;
+  bool _hasSyncedStats = false;
 
   bool get isHost => currentRoom != null && currentPlayerId == currentRoom!.hostId;
   bool get isMyTurn {
@@ -42,6 +43,12 @@ class GameProvider with ChangeNotifier {
   void _setLoading(bool loading) {
     _isLoading = loading;
     notifyListeners();
+  }
+  
+  List<String> _getWinners(Room room) {
+    if (room.players.isEmpty) return [];
+    int maxScore = room.players.values.fold(0, (max, p) => p.score > max ? p.score : max);
+    return room.players.values.where((p) => p.score == maxScore).map((p) => p.id).toList();
   }
 
   void listenToRoom(String roomId) {
@@ -59,12 +66,31 @@ class GameProvider with ChangeNotifier {
         } else {
           currentRoom = room;
           
-          // Se siamo l'host e la partita è in corso, controlliamo se è finita 
-          // (es. qualcuno è uscito e ne è rimasto solo uno che deve indovinare)
-          if (isHost && room.status == RoomStatus.playing) {
-            int unsavedCount = room.players.values.where((p) => !p.isSaved).length;
-            if (unsavedCount <= 1) {
-              _firebaseService.updateRoomStatus(room.id, RoomStatus.finished);
+          if (isHost) {
+            // Sincronizza il turnOrder (perché i guest potrebbero non avere i permessi per farlo)
+            List<String> missing = room.players.keys.where((id) => !room.turnOrder.contains(id)).toList();
+            List<String> removed = room.turnOrder.where((id) => !room.players.containsKey(id)).toList();
+            if (missing.isNotEmpty || removed.isNotEmpty) {
+              List<String> newTurnOrder = List.from(room.turnOrder);
+              newTurnOrder.removeWhere((id) => removed.contains(id));
+              newTurnOrder.addAll(missing);
+              _firebaseService.syncTurnOrder(room.id, newTurnOrder);
+            }
+
+            // Se siamo l'host e la partita è in corso, controlliamo se è finita 
+            // (es. qualcuno è uscito e ne è rimasto solo uno che deve indovinare)
+            if (room.status == RoomStatus.playing) {
+              int unsavedCount = room.players.values.where((p) => !p.isSaved).length;
+              if (unsavedCount <= 1) {
+                _firebaseService.updateRoomStatus(room.id, RoomStatus.finished);
+              }
+            }
+            
+            // Sincronizzazione Batch Firestore (viene chiamata 1 sola volta)
+            if (room.status == RoomStatus.finished && !_hasSyncedStats) {
+              _hasSyncedStats = true;
+              List<String> winners = _getWinners(room);
+              _firebaseService.finalizeGameAndSyncStats(room.id, winners, room.players.keys.toList());
             }
           }
           
@@ -235,6 +261,7 @@ class GameProvider with ChangeNotifier {
   Future<void> returnToLobby(double volumeMultiplier) async {
     if (currentRoom == null) return;
     _setLoading(true);
+    _hasSyncedStats = false;
     _audioPlayer.play(AssetSource('audio/whoosh.mp3'), volume: 1.0 * volumeMultiplier);
     // Delete any uploaded custom images for this session
     await ProfileStorageService().deleteCustomRoomImages(currentRoom!.id);
@@ -412,6 +439,11 @@ class GameProvider with ChangeNotifier {
     }
     
     await _firebaseService.passTurn(currentRoom!.id, nextIndex);
+  }
+
+  Future<void> forcePassTurn() async {
+    if (currentRoom == null || !isHost) return;
+    await passTurn();
   }
 
   Map<String, dynamic> _getNewIdentityUpdates(String playerId) {

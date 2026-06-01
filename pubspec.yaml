@@ -52,6 +52,7 @@ dependencies:
   cached_network_image: ^3.4.1
   google_sign_in: ^6.2.2
   image_cropper: ^8.0.2
+  firebase_database: ^12.4.1
 
 dev_dependencies:
   flutter_test:

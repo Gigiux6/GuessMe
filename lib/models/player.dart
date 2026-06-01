@@ -8,6 +8,7 @@ class Player {
   final String? avatarUrl;
   final int remainingChanges;
   final int score;
+  final bool isOnline;
 
   Player({
     required this.id,
@@ -19,6 +20,7 @@ class Player {
     this.avatarUrl,
     this.remainingChanges = 0,
     this.score = 0,
+    this.isOnline = true,
   });
 
   factory Player.fromMap(String id, Map<dynamic, dynamic> map) {
@@ -44,6 +46,7 @@ class Player {
       avatarUrl: map['avatarUrl'],
       remainingChanges: map['remainingChanges'] ?? 0,
       score: map['score'] ?? 0,
+      isOnline: map['isOnline'] ?? true,
     );
   }
 
@@ -57,6 +60,7 @@ class Player {
       'avatarUrl': avatarUrl,
       'remainingChanges': remainingChanges,
       'score': score,
+      'isOnline': isOnline,
     };
   }
 

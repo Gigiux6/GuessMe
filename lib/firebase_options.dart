@@ -44,7 +44,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBjry_qqw3N2eKOpmbroMtsj5I2iU5g8a4',
-    appId: '1:1234567890:android:dummy1234',
+    appId: '1:468446089858:android:15d3a509f253da79201a9b',
     messagingSenderId: '468446089858',
     projectId: 'guess-me-bfd58',
     databaseURL: 'https://guess-me-bfd58-default-rtdb.europe-west1.firebasedatabase.app',
