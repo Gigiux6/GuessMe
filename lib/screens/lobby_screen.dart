@@ -22,6 +22,7 @@ class LobbyScreen extends StatefulWidget {
 class _LobbyScreenState extends State<LobbyScreen> {
   String? _lastShownSystemMessage;
   bool _isInitialized = false;
+  bool _isLeaving = false;
 
   @override
   void initState() {
@@ -49,6 +50,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
       ),
     );
     if (shouldPop == true) {
+      _isLeaving = true;
       final name = userProvider.user?.name;
       await gameProvider.leaveRoom(name: name, language: userProvider.language);
       await userProvider.setLastRoomId(null);
@@ -119,7 +121,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
     if (room == null) {
       // Se siamo qui e il room è null, aspettiamo un attimo prima di dare errore,
       // a meno che non sappiamo per certo che la stanza non esiste più (es. host uscito).
-      if (gameProvider.currentPlayerId == null) {
+      if (gameProvider.currentPlayerId == null && !_isLeaving) {
          WidgetsBinding.instance.addPostFrameCallback((_) {
           if (ModalRoute.of(context)?.isCurrent == true) {
             context.read<UserProvider>().setLastRoomId(null);

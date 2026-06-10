@@ -34,6 +34,7 @@ class _GameScreenState extends State<GameScreen> {
   bool _showingFeedback = false;
   String? _feedbackIdentity;
   String? _feedbackImageUrl;
+  bool _isLeaving = false;
 
   @override
   void initState() {
@@ -266,7 +267,7 @@ class _GameScreenState extends State<GameScreen> {
     }
 
     if (room == null) {
-      if (gameProvider.currentPlayerId == null) {
+      if (gameProvider.currentPlayerId == null && !_isLeaving) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (ModalRoute.of(context)?.isCurrent == true) {
             context.read<UserProvider>().setLastRoomId(null);
@@ -339,6 +340,7 @@ class _GameScreenState extends State<GameScreen> {
           ),
         );
         if (shouldPop == true) {
+          _isLeaving = true;
           final name = userProvider.user?.name;
           await gameProvider.leaveRoom(name: name, language: userProvider.language);
           await userProvider.setLastRoomId(null);
