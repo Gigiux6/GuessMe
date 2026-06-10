@@ -23,7 +23,7 @@ class Player {
     this.isOnline = true,
   });
 
-  factory Player.fromMap(String id, Map<dynamic, dynamic> map) {
+  factory Player.fromMap(String id, Map<String, dynamic> map) {
     final savedAtVal = map['savedAt'];
     int? savedAtMs;
     if (savedAtVal != null) {
@@ -73,6 +73,8 @@ class Player {
     String? identityImageUrl,
     String? avatarUrl,
     int? remainingChanges,
+    int? score,
+    bool? isOnline,
   }) {
     return Player(
       id: id ?? this.id,
@@ -84,6 +86,7 @@ class Player {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       remainingChanges: remainingChanges ?? this.remainingChanges,
       score: score ?? this.score,
+      isOnline: isOnline ?? this.isOnline,
     );
   }
 }

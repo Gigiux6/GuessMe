@@ -11,41 +11,43 @@ class AuthService {
 
   bool get isAnonymous => currentUser?.isAnonymous ?? true;
 
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
+
   Future<User?> signInAnonymously() async {
     try {
       final credential = await _auth.signInAnonymously();
       return credential.user;
     } catch (e) {
       debugPrint('Errore signInAnonymously: $e');
-      throw 'Errore durante l\'accesso anonimo: $e';
+      throw Exception('Errore durante l\'accesso anonimo: $e');
     }
   }
 
+  Future<AuthCredential?> _getMobileGoogleCredential() async {
+    final GoogleSignInAccount? googleUser = await _googleSignIn!.signIn();
+    if (googleUser == null) return null;
+
+    final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+    return GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+  }
+
   Future<User?> linkWithGoogle() async {
-    final user = _auth.currentUser;
+    final user = currentUser;
     if (user == null) {
-      throw 'Nessun utente attualmente autenticato.';
+      throw Exception('Nessun utente attualmente autenticato.');
     }
 
     try {
       if (kIsWeb) {
-        // Su Web, utilizziamo direttamente linkWithPopup per collegare l'account Google
-        // all'utente anonimo corrente senza disconnetterlo.
         final GoogleAuthProvider googleProvider = GoogleAuthProvider();
         final UserCredential userCredential = await user.linkWithPopup(googleProvider);
         return userCredential.user;
       } else {
-        // Su Mobile (Android/iOS), utilizziamo la libreria nativa google_sign_in
-        final GoogleSignInAccount? googleUser = await _googleSignIn!.signIn();
-        if (googleUser == null) {
-          return null; // Collegamento annullato dall'utente
-        }
-
-        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-        final AuthCredential credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
+        final credential = await _getMobileGoogleCredential();
+        if (credential == null) return null;
 
         final UserCredential userCredential = await user.linkWithCredential(credential);
         return userCredential.user;
@@ -53,22 +55,22 @@ class AuthService {
     } on FirebaseAuthException catch (e, stackTrace) {
       debugPrint('FirebaseAuthException in linkWithGoogle: ${e.code} - ${e.message}\n$stackTrace');
       if (e.code == 'credential-already-in-use') {
-        throw 'Questo account Google è già associato a un altro utente. Impossibile collegarlo.';
+        throw Exception('Questo account Google è già associato a un altro utente. Impossibile collegarlo.');
       } else if (e.code == 'provider-already-linked') {
-        throw 'Questo profilo è già collegato ad un account Google.';
+        throw Exception('Questo profilo è già collegato ad un account Google.');
       } else {
-        throw 'Errore durante il collegamento Google: ${e.message}';
+        throw Exception('Errore durante il collegamento Google: ${e.message}');
       }
     } catch (e, stackTrace) {
       debugPrint('Errore generico in linkWithGoogle: $e\n$stackTrace');
-      throw 'Errore generico durante il collegamento Google: $e';
+      throw Exception('Errore generico durante il collegamento Google: $e');
     }
   }
 
   Future<User?> linkWithProviderCredential(AuthCredential credential) async {
-    final user = _auth.currentUser;
+    final user = currentUser;
     if (user == null) {
-      throw 'Nessun utente attualmente autenticato.';
+      throw Exception('Nessun utente attualmente autenticato.');
     }
     try {
       final UserCredential userCredential = await user.linkWithCredential(credential);
@@ -76,15 +78,15 @@ class AuthService {
     } on FirebaseAuthException catch (e) {
       debugPrint('FirebaseAuthException in linkWithProviderCredential: ${e.code} - ${e.message}');
       if (e.code == 'credential-already-in-use' || e.code == 'email-already-in-use') {
-        throw 'Questo account è già associato a un altro utente. Impossibile collegarlo.';
+        throw Exception('Questo account è già associato a un altro utente. Impossibile collegarlo.');
       } else if (e.code == 'provider-already-linked') {
-        throw 'Questo profilo è già collegato ad un account con lo stesso provider.';
+        throw Exception('Questo profilo è già collegato ad un account con lo stesso provider.');
       } else {
-        throw 'Errore durante il collegamento: ${e.message}';
+        throw Exception('Errore durante il collegamento: ${e.message}');
       }
     } catch (e) {
       debugPrint('Errore generico in linkWithProviderCredential: $e');
-      throw 'Errore generico durante il collegamento: $e';
+      throw Exception('Errore generico durante il collegamento: $e');
     }
   }
 
@@ -95,23 +97,15 @@ class AuthService {
         final UserCredential userCredential = await _auth.signInWithPopup(googleProvider);
         return userCredential.user;
       } else {
-        final GoogleSignInAccount? googleUser = await _googleSignIn!.signIn();
-        if (googleUser == null) {
-          return null; // Sign-in annullato dall'utente
-        }
-
-        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-        final AuthCredential credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
+        final credential = await _getMobileGoogleCredential();
+        if (credential == null) return null;
 
         final UserCredential userCredential = await _auth.signInWithCredential(credential);
         return userCredential.user;
       }
     } catch (e) {
       debugPrint('Errore in signInWithGoogle: $e');
-      throw 'Errore durante l\'accesso con Google: $e';
+      throw Exception('Errore durante l\'accesso con Google: $e');
     }
   }
 

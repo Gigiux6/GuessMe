@@ -6,26 +6,22 @@ class DataLoader {
   static Future<List<GamePack>> loadGamePacks() async {
     try {
       final String response = await rootBundle.loadString('assets/data/characters.json');
-      final data = await json.decode(response);
+      final Map<String, dynamic> data = json.decode(response);
+      final List<dynamic> rawPacks = data['packs'] ?? [];
       
-      List<GamePack> packs = [];
-      for (var packData in data['packs']) {
-        List<GameIdentity> identities = [];
-        for (var idData in packData['identities']) {
-          identities.add(GameIdentity(
-            name: idData['name'],
-            imageUrl: idData['imageUrl'],
-          ));
-        }
+      return rawPacks.map((packData) {
+        final List<dynamic> rawIdentities = packData['identities'] ?? [];
         
-        packs.add(GamePack(
+        return GamePack(
           id: packData['id'],
           name: packData['name'],
           icon: packData['icon'],
-          identities: identities,
-        ));
-      }
-      return packs;
+          identities: rawIdentities.map((idData) => GameIdentity(
+            name: idData['name'],
+            imageUrl: idData['imageUrl'],
+          )).toList(),
+        );
+      }).toList();
     } catch (e) {
       print('Error loading characters.json: $e');
       return []; // Fallback empty list

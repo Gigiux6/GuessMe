@@ -223,6 +223,7 @@ class GameProvider with ChangeNotifier {
 
     try {
       await _firebaseService.createRoom(room);
+      await _firebaseService.setupRoomDisconnectHook(roomId);
     } catch (e) {
       debugPrint('Firebase createRoom failed: $e. Proceeding locally.');
       // Proceed locally for UI testing without Firebase
@@ -255,6 +256,7 @@ class GameProvider with ChangeNotifier {
       return false;
     }
     
+    await _firebaseService.setupPlayerDisconnectHook(roomId, uid);
     await listenToRoom(roomId);
     _setLoading(false);
     return true;
@@ -295,9 +297,10 @@ class GameProvider with ChangeNotifier {
     if (isHost) {
       // Clean up custom images
       await ProfileStorageService().deleteCustomRoomImages(roomId);
+      await _firebaseService.cancelRoomDisconnectHook(roomId);
       await _firebaseService.deleteRoom(roomId);
     } else {
-      await _firebaseService.cancelOnDisconnect(roomId, currentPlayerId!);
+      await _firebaseService.cancelPlayerDisconnectHook(roomId, currentPlayerId!);
       if (name != null && language != null) {
         await sendSystemMessage(roomId, AppTranslations.translate('player_left', language, args: {'name': name}));
       }
@@ -351,10 +354,7 @@ class GameProvider with ChangeNotifier {
 
     _setLoading(true);
 
-    final pack = GamePacksData.packs.firstWhere(
-      (p) => p.id == currentRoom!.presetPack, 
-      orElse: () => GamePacksData.packs.firstWhere((p) => p.id == 'cinema', orElse: () => GamePacksData.packs.first)
-    );
+    final pack = _getCurrentGamePack();
     
     // Get all current identity names to avoid duplicates
     final currentIdentities = currentRoom!.players.values
@@ -469,10 +469,7 @@ class GameProvider with ChangeNotifier {
   Map<String, dynamic> _getNewIdentityUpdates(String playerId) {
     if (currentRoom == null) return {};
     
-    final pack = GamePacksData.packs.firstWhere(
-      (p) => p.id == currentRoom!.presetPack, 
-      orElse: () => GamePacksData.packs.firstWhere((p) => p.id == 'cinema', orElse: () => GamePacksData.packs.first)
-    );
+    final pack = _getCurrentGamePack();
     
     final currentIdentities = currentRoom!.players.values
         .map((p) => p.identityName)
@@ -493,32 +490,67 @@ class GameProvider with ChangeNotifier {
     return {};
   }
 
+  GamePack _getCurrentGamePack() {
+    final defaultPack = 'cinema';
+    return GamePacksData.packs.firstWhere(
+      (p) => p.id == currentRoom?.presetPack, 
+      orElse: () => GamePacksData.packs.firstWhere(
+        (p) => p.id == defaultPack, 
+        orElse: () => GamePacksData.packs.first
+      )
+    );
+  }
+
   Future<void> guessIdentity(bool isCorrect, double volumeMultiplier) async {
     if (currentRoom == null || currentPlayerId == null) return;
     
+    _playGuessAudio(isCorrect, volumeMultiplier);
+
     if (currentRoom!.mode == GameMode.timed) {
-      if (isCorrect) {
-        _audioPlayer.play(AssetSource('audio/success.mp3'), volume: 0.4 * volumeMultiplier);
+      await _handleTimedModeGuess(isCorrect);
+    } else {
+      await _handlePresetModeGuess(isCorrect);
+    }
+  }
+
+  void _playGuessAudio(bool isCorrect, double volumeMultiplier) {
+    final asset = isCorrect ? 'audio/success.mp3' : 'audio/whoosh.mp3';
+    final volume = isCorrect ? 0.4 * volumeMultiplier : 1.0 * volumeMultiplier;
+    _audioPlayer.play(AssetSource(asset), volume: volume);
+  }
+
+  Future<void> _handlePresetModeGuess(bool isCorrect) async {
+    if (isCorrect) {
+      await _firebaseService.savePlayer(currentRoom!.id, currentPlayerId!);
+      
+      int unsavedCount = currentRoom!.players.values.where((p) => !p.isSaved && p.id != currentPlayerId).length;
+      if (unsavedCount <= 1) { 
+        await _firebaseService.updateRoomStatus(currentRoom!.id, RoomStatus.finished);
       } else {
-        _audioPlayer.play(AssetSource('audio/whoosh.mp3'), volume: 1.0 * volumeMultiplier);
+        await passTurn();
       }
+    } else {
+      await passTurn();
+    }
+  }
 
-      final me = currentRoom!.players[currentPlayerId!];
-      int newScore = (me?.score ?? 0) + (isCorrect ? 1 : 0);
-      
-      Map<String, dynamic> identityUpdates = _getNewIdentityUpdates(currentPlayerId!);
-      
-      Map<String, dynamic> playersUpdates = {};
-      playersUpdates['$currentPlayerId/score'] = newScore;
-      identityUpdates.forEach((k, v) {
-        playersUpdates['$currentPlayerId/$k'] = v;
-      });
+  Future<void> _handleTimedModeGuess(bool isCorrect) async {
+    final me = currentRoom!.players[currentPlayerId!];
+    int newScore = (me?.score ?? 0) + (isCorrect ? 1 : 0);
+    
+    Map<String, dynamic> identityUpdates = _getNewIdentityUpdates(currentPlayerId!);
+    
+    Map<String, dynamic> playersUpdates = {};
+    playersUpdates['$currentPlayerId/score'] = newScore;
+    identityUpdates.forEach((k, v) {
+      playersUpdates['$currentPlayerId/$k'] = v;
+    });
 
-      Map<String, dynamic> roomUpdates = {};
-      
-      try {
-        Set<String> eliminatedIds = currentRoom!.players.values.where((p) => p.isSaved).map((p) => p.id).toSet();
-      
+    Map<String, dynamic> roomUpdates = {};
+    
+    try {
+      Set<String> eliminatedIds = currentRoom!.players.values.where((p) => p.isSaved).map((p) => p.id).toSet();
+    
       int currentCycle = currentRoom!.turnIndex ~/ currentRoom!.turnOrder.length;
       int tempNextIndex = currentRoom!.turnIndex + 1;
       while (true) {
@@ -585,27 +617,10 @@ class GameProvider with ChangeNotifier {
       String nextPlayerId = currentRoom!.turnOrder[finalNextIndex % currentRoom!.turnOrder.length];
       playersUpdates['$nextPlayerId/remainingChanges'] = currentRoom!.characterChangesLimit;
       
-        await _firebaseService.executeTimedTurnEnd(currentRoom!.id, finalNextIndex, playersUpdates, roomUpdates);
-      } catch (e) {
-        await sendSystemMessage(currentRoom!.id, 'DEBUG ERROR: $e');
-        print('DEBUG ERROR: $e');
-      }
-      
-    } else {
-      if (isCorrect) {
-        _audioPlayer.play(AssetSource('audio/success.mp3'), volume: 0.4 * volumeMultiplier);
-        await _firebaseService.savePlayer(currentRoom!.id, currentPlayerId!);
-        
-        int unsavedCount = currentRoom!.players.values.where((p) => !p.isSaved && p.id != currentPlayerId).length;
-        if (unsavedCount <= 1) { 
-          await _firebaseService.updateRoomStatus(currentRoom!.id, RoomStatus.finished);
-        } else {
-          await passTurn();
-        }
-      } else {
-        _audioPlayer.play(AssetSource('audio/whoosh.mp3'), volume: 1.0 * volumeMultiplier);
-        await passTurn();
-      }
+      await _firebaseService.executeTimedTurnEnd(currentRoom!.id, finalNextIndex, playersUpdates, roomUpdates);
+    } catch (e) {
+      await sendSystemMessage(currentRoom!.id, 'DEBUG ERROR: $e');
+      print('DEBUG ERROR: $e');
     }
   }
 
