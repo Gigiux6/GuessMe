@@ -8,7 +8,6 @@ import 'theme/app_theme.dart';
 
 import 'screens/profile_setup_screen.dart';
 import 'providers/user_provider.dart';
-import 'widgets/debug_log_overlay.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -83,14 +82,6 @@ class _GuessMeAppState extends State<GuessMeApp> with WidgetsBindingObserver {
       theme: AppTheme.getTheme(userProvider.isDarkMode),
       debugShowCheckedModeBanner: false,
       home: home,
-      builder: (context, child) {
-        return Stack(
-          children: [
-            if (child != null) child,
-            const DebugLogOverlay(),
-          ],
-        );
-      },
     );
   }
 }
