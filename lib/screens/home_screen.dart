@@ -8,6 +8,7 @@ import '../providers/user_provider.dart';
 import 'settings_screen.dart';
 import 'edit_profile_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../services/debug_logger.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -30,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _createRoom() async {
+    final _log = DebugLogger.instance;
     final userProvider = context.read<UserProvider>();
     String? name = userProvider.user?.name;
     
@@ -45,16 +47,21 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     
     try {
+      _log.log('HOME', '_createRoom: calling gameProvider.createRoom...');
       await context.read<GameProvider>().createRoom(
         name, 
         userProvider.user!.uid, 
         avatarUrl: userProvider.user?.avatarUrl
       );
+      _log.log('HOME', '_createRoom: createRoom returned. mounted=$mounted, currentRoom=${context.read<GameProvider>().currentRoom?.id}');
       if (mounted) {
+        _log.log('HOME', '_createRoom: saving room id and navigating to lobby...');
         await context.read<GameProvider>().saveRoomId(context.read<GameProvider>().currentRoom?.id, userProvider);
+        _log.log('HOME', '_createRoom: Navigator.pushReplacement to LobbyScreen NOW');
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LobbyScreen()));
       }
     } catch (e) {
+      _log.log('HOME', '_createRoom EXCEPTION: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${userProvider.t('create_room_error')}: $e')),

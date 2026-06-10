@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../models/room.dart';
 import '../models/player.dart';
 import 'dart:async';
+import 'debug_logger.dart';
 
 class FirebaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -22,8 +23,12 @@ class FirebaseService {
   String _submissionsPath(String roomId) => '${_roomPath(roomId)}/submissions';
 
   Stream<Room?> getRoomStream(String roomId) {
+    final _log = DebugLogger.instance;
     return _rtdb.ref(_roomPath(roomId)).onValue.map((event) {
-      if (event.snapshot.value == null) return null;
+      if (event.snapshot.value == null) {
+        _log.log('RTDB_STREAM', 'Room $roomId -> NULL event received');
+        return null;
+      }
       
       final rawData = event.snapshot.value as Map;
       final fullRoomMap = rawData.map<String, dynamic>((key, value) => MapEntry(key.toString(), value));
@@ -34,13 +39,18 @@ class FirebaseService {
         fullRoomMap['players'] = rawPlayers.map<String, dynamic>((k, v) => MapEntry(k.toString(), v));
       }
       
-      return Room.fromMap(roomId, fullRoomMap);
+      final room = Room.fromMap(roomId, fullRoomMap);
+      _log.log('RTDB_STREAM', 'Room $roomId -> status=${room.status.name}, players=${room.players.length}');
+      return room;
     });
   }
 
   Future<void> createRoom(Room room) async {
+    final _log = DebugLogger.instance;
+    _log.log('FB_CREATE', 'Creating room ${room.id}...');
     final roomData = room.toMap();
     await _rtdb.ref(_roomPath(room.id)).set(roomData);
+    _log.log('FB_CREATE', 'Room ${room.id} written to RTDB OK');
   }
 
   Future<bool> joinRoom(String roomId, Player player) async {
@@ -188,6 +198,7 @@ class FirebaseService {
   }
 
   Future<void> deleteRoom(String roomId) async {
+    DebugLogger.instance.log('FB_DELETE', 'Deleting room $roomId');
     await _rtdb.ref(_roomPath(roomId)).remove();
   }
 
@@ -205,23 +216,28 @@ class FirebaseService {
   }
 
   Future<void> setupRoomDisconnectHook(String roomId) async {
+    final _log = DebugLogger.instance;
+    _log.log('FB_HOOK', 'Setting up room disconnect hook for $roomId...');
     final roomRef = _rtdb.ref(_roomPath(roomId));
-    // On web release, keep the connection alive to prevent spurious
-    // onDisconnect triggers during page transitions.
     if (kIsWeb) {
       roomRef.keepSynced(true);
       _rtdb.goOnline();
+      _log.log('FB_HOOK', 'Web: keepSynced + goOnline done');
     }
     await roomRef.onDisconnect().remove();
+    _log.log('FB_HOOK', 'Room disconnect hook registered OK');
   }
 
   Future<void> setupPlayerDisconnectHook(String roomId, String playerId) async {
+    final _log = DebugLogger.instance;
+    _log.log('FB_HOOK', 'Setting up player disconnect hook for $playerId in $roomId...');
     final playerRef = _rtdb.ref(_playerPath(roomId, playerId));
     if (kIsWeb) {
       playerRef.keepSynced(true);
       _rtdb.goOnline();
     }
     await playerRef.onDisconnect().remove();
+    _log.log('FB_HOOK', 'Player disconnect hook registered OK');
   }
 
   Future<void> cancelRoomDisconnectHook(String roomId) async {
