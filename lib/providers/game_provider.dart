@@ -51,19 +51,25 @@ class GameProvider with ChangeNotifier {
     return room.players.values.where((p) => p.score == maxScore).map((p) => p.id).toList();
   }
 
-  void listenToRoom(String roomId) {
+  Future<void> listenToRoom(String roomId) async {
     _roomSubscription?.cancel();
+    
+    Completer<void> completer = Completer<void>();
+    bool hasSeenValidRoom = false;
+
     _roomSubscription = _firebaseService.getRoomStream(roomId).listen(
       (room) {
         if (room == null) {
           // Se la stanza sparisce ma noi pensavamo di esserci dentro, allora chiudiamo
-          if (currentRoom != null) {
+          // Evitiamo ghost events iniziali attendendo almeno un evento valido.
+          if (hasSeenValidRoom && currentRoom != null) {
             _roomSubscription?.cancel();
             currentRoom = null;
             currentPlayerId = null;
             notifyListeners();
           }
         } else {
+          hasSeenValidRoom = true;
           currentRoom = room;
           
           if (isHost) {
@@ -95,6 +101,7 @@ class GameProvider with ChangeNotifier {
           }
           
           notifyListeners();
+          if (!completer.isCompleted) completer.complete();
         }
       },
       onError: (error) {
@@ -103,8 +110,21 @@ class GameProvider with ChangeNotifier {
         currentRoom = null;
         currentPlayerId = null;
         notifyListeners();
+        if (!completer.isCompleted) completer.completeError(error);
       },
     );
+
+    Future.delayed(const Duration(seconds: 5), () {
+      if (!completer.isCompleted) {
+        _roomSubscription?.cancel();
+        currentRoom = null;
+        currentPlayerId = null;
+        notifyListeners();
+        completer.complete();
+      }
+    });
+
+    return completer.future;
   }
 
   Future<void> updateRoomSettings({GameMode? mode, String? presetPack, int? characterChangesLimit, int? timeLimit, int? targetPoints}) async {
@@ -211,7 +231,7 @@ class GameProvider with ChangeNotifier {
     }
     
     try {
-      listenToRoom(roomId);
+      await listenToRoom(roomId);
     } catch (e) {
       debugPrint('Firebase listenToRoom failed: $e');
     }
@@ -235,7 +255,7 @@ class GameProvider with ChangeNotifier {
       return false;
     }
     
-    listenToRoom(roomId);
+    await listenToRoom(roomId);
     _setLoading(false);
     return true;
   }
