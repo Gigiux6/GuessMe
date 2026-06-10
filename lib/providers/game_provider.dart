@@ -114,12 +114,11 @@ class GameProvider with ChangeNotifier {
       },
     );
 
-    Future.delayed(const Duration(seconds: 5), () {
+    Future.delayed(const Duration(seconds: 15), () {
       if (!completer.isCompleted) {
-        _roomSubscription?.cancel();
-        currentRoom = null;
-        currentPlayerId = null;
-        notifyListeners();
+        debugPrint('Warning: listenToRoom took longer than 15 seconds to receive initial data.');
+        // We no longer cancel the subscription here because Web connections
+        // can sometimes take longer to establish the WebSocket handshake.
         completer.complete();
       }
     });
