@@ -45,78 +45,70 @@ class UserProvider with ChangeNotifier {
   String? _lastRoomId;
   String? get lastRoomId => _lastRoomId;
 
+  // ==========================================
+  // INIZIALIZZAZIONE (Bootstrapping)
+  // ==========================================
   Future<void> init() async {
     if (_isInitialized) return;
     
     try {
-      debugPrint('1. Cerco SharedPreferences...');
       final prefs = await SharedPreferences.getInstance();
-      _musicVolume = prefs.getDouble(_musicVolumeKey) ?? 0.3;
-      _effectsVolume = prefs.getDouble(_effectsVolumeKey) ?? 1.0;
-      _language = prefs.getString(_languageKey) ?? 'it';
-      _lastRoomId = prefs.getString(_lastRoomIdKey);
-      _isDarkMode = prefs.getBool(_darkModeKey) ?? false;
+      _loadLocalSettings(prefs);
       
-      final savedName = prefs.getString(_nameKey);
-      final savedAvatar = prefs.getString(_avatarKey);
-      debugPrint('2. SharedPreferences caricate. Utente salvato: $savedName');
-      
-      debugPrint('3. Controllo Auth Firebase...');
-      User? firebaseUser = _auth.currentUser;
-      if (firebaseUser == null) {
-        debugPrint('4. Nessun utente, provo Login Anonimo (timeout 5s)...');
-        try {
-          final credential = await _auth.signInAnonymously().timeout(
-            const Duration(seconds: 5),
-            onTimeout: () {
-              debugPrint('TIMEOUT: Firebase Auth non risponde.');
-              throw 'Timeout Firebase Auth';
-            },
-          );
-          firebaseUser = credential.user;
-          debugPrint('5. Login Anonimo riuscito: ${firebaseUser?.uid}');
-        } catch (e) {
-          debugPrint('ERRORE/TIMEOUT Auth: $e');
-        }
-      } else {
-        debugPrint('4. Utente Firebase già loggato: ${firebaseUser.uid}');
-      }
-
-      if (firebaseUser != null && savedName != null) {
-        debugPrint('6. Sincronizzo profilo Firebase (timeout 5s)...');
-        try {
-          await _syncProfile(firebaseUser.uid, savedName, savedAvatar).timeout(
-            const Duration(seconds: 5),
-            onTimeout: () {
-              debugPrint('TIMEOUT: Sincronizzazione profilo non risponde.');
-              // Carico profilo locale per non bloccare
-              _loadLocalFallback(firebaseUser!.uid, savedName, savedAvatar);
-            },
-          );
-        } catch (e) {
-          debugPrint('ERRORE Sync Profile: $e');
-          _loadLocalFallback(firebaseUser.uid, savedName, savedAvatar);
-        }
-      } else if (firebaseUser == null && savedName != null) {
-        debugPrint('6. Firebase non disponibile, uso profilo locale Guest.');
-        _loadLocalFallback('local_user', savedName, savedAvatar);
-      } else {
-        debugPrint('6. Nessun dato locale trovato, attendo Setup iniziale.');
-      }
+      await _initializeAuthAndProfile(prefs);
     } catch (e) {
-      debugPrint('ERRORE CRITICO Inizializzazione: $e');
+      debugPrint('ERRORE CRITICO Inizializzazione UserProvider: $e');
     } finally {
-      debugPrint('7. Caricamento dati di gioco (JSON)...');
-      try {
-        final loadedPacks = await DataLoader.loadGamePacks();
-        GamePacksData.initialize(loadedPacks);
-      } catch (e) {
-        debugPrint('ERRORE Caricamento Dati: $e');
-      }
+      await _loadGameAssets();
       
-      debugPrint('8. Inizializzazione completata.');
       _isInitialized = true;
       notifyListeners();
+      debugPrint('Inizializzazione completata.');
+    }
+  }
+
+  void _loadLocalSettings(SharedPreferences prefs) {
+    _musicVolume = prefs.getDouble(_musicVolumeKey) ?? 0.3;
+    _effectsVolume = prefs.getDouble(_effectsVolumeKey) ?? 1.0;
+    _language = prefs.getString(_languageKey) ?? 'it';
+    _lastRoomId = prefs.getString(_lastRoomIdKey);
+    _isDarkMode = prefs.getBool(_darkModeKey) ?? false;
+  }
+
+  Future<void> _initializeAuthAndProfile(SharedPreferences prefs) async {
+    final savedName = prefs.getString(_nameKey);
+    final savedAvatar = prefs.getString(_avatarKey);
+    
+    User? firebaseUser = _auth.currentUser;
+
+    if (firebaseUser == null) {
+      try {
+        final credential = await _auth.signInAnonymously().timeout(const Duration(seconds: 5));
+        firebaseUser = credential.user;
+      } catch (e) {
+        debugPrint('ERRORE/TIMEOUT Firebase Auth: $e');
+      }
+    }
+
+    if (firebaseUser != null && savedName != null) {
+      try {
+        await _syncProfile(firebaseUser.uid, savedName, savedAvatar)
+            .timeout(const Duration(seconds: 5));
+      } catch (e) {
+        debugPrint('TIMEOUT/ERRORE Sync Profile: $e');
+        _loadLocalFallback(firebaseUser.uid, savedName, savedAvatar);
+      }
+    } else if (firebaseUser == null && savedName != null) {
+      _loadLocalFallback('local_user', savedName, savedAvatar);
+    }
+  }
+
+  Future<void> _loadGameAssets() async {
+    try {
+      final loadedPacks = await DataLoader.loadGamePacks();
+      GamePacksData.initialize(loadedPacks);
+    } catch (e) {
+      debugPrint('ERRORE Caricamento Dati Gioco: $e');
     }
   }
 
@@ -287,19 +279,26 @@ class UserProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _handleSuccessfulAuth(User firebaseUser) async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    final existingName = _user?.name;
+    final name = (existingName != null && existingName.isNotEmpty && existingName != 'Giocatore')
+        ? existingName
+        : (firebaseUser.displayName ?? 'Giocatore');
+        
+    final photo = firebaseUser.photoURL ?? _user?.avatarUrl ?? _getDefaultAvatar(name);
+    
+    await prefs.setString(_nameKey, name);
+    await prefs.setString(_avatarKey, photo);
+    await _syncProfile(firebaseUser.uid, name, photo);
+  }
+
   Future<bool> linkAccountWithGoogle() async {
     try {
       final user = await _authService.linkWithGoogle();
       if (user != null) {
-        final prefs = await SharedPreferences.getInstance();
-        final existingName = _user?.name;
-        final name = (existingName != null && existingName.isNotEmpty && existingName != 'Giocatore')
-            ? existingName
-            : (user.displayName ?? 'Giocatore');
-        final photo = user.photoURL ?? _user?.avatarUrl ?? _getDefaultAvatar(name);
-        await prefs.setString(_nameKey, name);
-        await prefs.setString(_avatarKey, photo);
-        await _syncProfile(user.uid, name, photo);
+        await _handleSuccessfulAuth(user);
         return true;
       }
       return false;
@@ -313,15 +312,7 @@ class UserProvider with ChangeNotifier {
     try {
       final user = await _authService.linkWithProviderCredential(credential);
       if (user != null) {
-        final prefs = await SharedPreferences.getInstance();
-        final existingName = _user?.name;
-        final name = (existingName != null && existingName.isNotEmpty && existingName != 'Giocatore')
-            ? existingName
-            : (user.displayName ?? 'Giocatore');
-        final photo = user.photoURL ?? _user?.avatarUrl ?? _getDefaultAvatar(name);
-        await prefs.setString(_nameKey, name);
-        await prefs.setString(_avatarKey, photo);
-        await _syncProfile(user.uid, name, photo);
+        await _handleSuccessfulAuth(user);
         return true;
       }
       return false;
@@ -335,14 +326,7 @@ class UserProvider with ChangeNotifier {
     try {
       final user = await _authService.signInWithGoogle();
       if (user != null) {
-        final prefs = await SharedPreferences.getInstance();
-        final existingName = _user?.name;
-        final name = (existingName != null && existingName.isNotEmpty && existingName != 'Giocatore')
-            ? existingName
-            : (user.displayName ?? 'Giocatore');
-        final photo = user.photoURL ?? _getDefaultAvatar(name);
-        await prefs.setString(_nameKey, name);
-        await prefs.setString(_avatarKey, photo);
+        await _handleSuccessfulAuth(user);
         resetInitializationFlag();
         await init();
       }

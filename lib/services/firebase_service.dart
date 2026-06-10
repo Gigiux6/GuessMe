@@ -16,8 +16,13 @@ class FirebaseService {
 
   int get synchronizedTime => DateTime.now().millisecondsSinceEpoch + _serverTimeOffset;
 
+  String _roomPath(String roomId) => 'rooms/$roomId';
+  String _playersPath(String roomId) => '${_roomPath(roomId)}/players';
+  String _playerPath(String roomId, String playerId) => '${_playersPath(roomId)}/$playerId';
+  String _submissionsPath(String roomId) => '${_roomPath(roomId)}/submissions';
+
   Stream<Room?> getRoomStream(String roomId) {
-    return _rtdb.ref('rooms/$roomId').onValue.map((event) {
+    return _rtdb.ref(_roomPath(roomId)).onValue.map((event) {
       if (event.snapshot.value == null) return null;
       
       final rawData = event.snapshot.value as Map;
@@ -35,11 +40,11 @@ class FirebaseService {
 
   Future<void> createRoom(Room room) async {
     final roomData = room.toMap();
-    await _rtdb.ref('rooms/${room.id}').set(roomData);
+    await _rtdb.ref(_roomPath(room.id)).set(roomData);
   }
 
   Future<bool> joinRoom(String roomId, Player player) async {
-    final roomRef = _rtdb.ref('rooms/$roomId');
+    final roomRef = _rtdb.ref(_roomPath(roomId));
     final roomSnap = await roomRef.get();
     
     if (!roomSnap.exists) return false;
@@ -47,7 +52,7 @@ class FirebaseService {
     final data = roomSnap.value as Map?;
     if (data == null || data['hostId'] == null) return false;
 
-    final playerRef = roomRef.child('players/${player.id}');
+    final playerRef = _rtdb.ref(_playerPath(roomId, player.id));
     final playerSnap = await playerRef.get();
     
     if (playerSnap.exists) {
@@ -63,30 +68,30 @@ class FirebaseService {
   }
 
   Future<void> syncTurnOrder(String roomId, List<String> turnOrder) async {
-    await _rtdb.ref('rooms/$roomId/turnOrder').set(turnOrder);
+    await _rtdb.ref('${_roomPath(roomId)}/turnOrder').set(turnOrder);
   }
 
   Future<void> updateRoomStatus(String roomId, RoomStatus status, [GameMode? mode, String? presetPack]) async {
     Map<String, dynamic> updates = {'status': status.name};
     if (mode != null) updates['mode'] = mode.name;
     if (presetPack != null) updates['presetPack'] = presetPack;
-    await _rtdb.ref('rooms/$roomId').update(updates);
+    await _rtdb.ref(_roomPath(roomId)).update(updates);
   }
 
   Future<void> updateRoomSettings(String roomId, Map<String, dynamic> settings) async {
-    await _rtdb.ref('rooms/$roomId').update(settings);
+    await _rtdb.ref(_roomPath(roomId)).update(settings);
   }
 
   Future<void> updatePlayer(String roomId, String playerId, Map<String, dynamic> updates) async {
-    await _rtdb.ref('rooms/$roomId/players/$playerId').update(updates);
+    await _rtdb.ref(_playerPath(roomId, playerId)).update(updates);
   }
 
   Future<void> submitCustomIdentity(String roomId, String playerId, Map<String, dynamic> submission) async {
-    await _rtdb.ref('rooms/$roomId/submissions/$playerId').set(submission);
+    await _rtdb.ref('${_submissionsPath(roomId)}/$playerId').set(submission);
   }
 
   Future<Map<String, dynamic>> getSubmissions(String roomId) async {
-    final snap = await _rtdb.ref('rooms/$roomId/submissions').get();
+    final snap = await _rtdb.ref(_submissionsPath(roomId)).get();
     if (snap.exists && snap.value != null) {
       final rawData = snap.value as Map;
       return rawData.map((key, value) => MapEntry(key.toString(), value));
@@ -95,14 +100,14 @@ class FirebaseService {
   }
 
   Future<void> savePlayer(String roomId, String playerId) async {
-    await _rtdb.ref('rooms/$roomId/players/$playerId').update({
+    await _rtdb.ref(_playerPath(roomId, playerId)).update({
       'isSaved': true,
       'savedAt': DateTime.now().millisecondsSinceEpoch,
     });
   }
 
   Future<void> passTurn(String roomId, int newTurnIndex) async {
-    await _rtdb.ref('rooms/$roomId').update({'turnIndex': newTurnIndex});
+    await _rtdb.ref(_roomPath(roomId)).update({'turnIndex': newTurnIndex});
   }
 
   Future<void> executeTimedTurnEnd(
@@ -113,22 +118,24 @@ class FirebaseService {
   ) async {
     Map<String, dynamic> updates = {};
     
+    final rPath = _roomPath(roomId);
     roomUpdates.forEach((key, value) {
-      updates['rooms/$roomId/$key'] = value;
+      updates['$rPath/$key'] = value;
     });
-    updates['rooms/$roomId/turnIndex'] = nextTurnIndex;
-    updates['rooms/$roomId/timerEndTime'] = null;
-    updates['rooms/$roomId/timerType'] = null;
+    updates['$rPath/turnIndex'] = nextTurnIndex;
+    updates['$rPath/timerEndTime'] = null;
+    updates['$rPath/timerType'] = null;
     
+    final pPath = _playersPath(roomId);
     playersUpdates.forEach((key, value) {
-      updates['rooms/$roomId/players/$key'] = value;
+      updates['$pPath/$key'] = value;
     });
     
     await _rtdb.ref().update(updates);
   }
 
   Future<void> syncTimer(String roomId, int? endTime, String? type) async {
-    await _rtdb.ref('rooms/$roomId').update({
+    await _rtdb.ref(_roomPath(roomId)).update({
       'timerEndTime': endTime,
       'timerType': type,
     });
@@ -137,48 +144,51 @@ class FirebaseService {
   Future<void> assignIdentities(String roomId, Map<String, Map<String, dynamic>> assignments, {int initialChanges = 0}) async {
     Map<String, dynamic> updates = {};
     assignments.forEach((playerId, data) {
-      updates['rooms/$roomId/players/$playerId/identityName'] = data['identityName'];
-      updates['rooms/$roomId/players/$playerId/remainingChanges'] = initialChanges;
+      final pPath = _playerPath(roomId, playerId);
+      updates['$pPath/identityName'] = data['identityName'];
+      updates['$pPath/remainingChanges'] = initialChanges;
       if (data['identityImageUrl'] != null) {
-        updates['rooms/$roomId/players/$playerId/identityImageUrl'] = data['identityImageUrl'];
+        updates['$pPath/identityImageUrl'] = data['identityImageUrl'];
       }
     });
     await _rtdb.ref().update(updates);
   }
 
   Future<void> resetRoomForNewGame(String roomId) async {
-    final roomSnap = await _rtdb.ref('rooms/$roomId/players').get();
+    final roomSnap = await _rtdb.ref(_playersPath(roomId)).get();
     Map<String, dynamic> updates = {};
     
     if (roomSnap.exists && roomSnap.value != null) {
       final players = roomSnap.value as Map;
       players.keys.forEach((playerId) {
-        updates['rooms/$roomId/players/$playerId/identityName'] = null;
-        updates['rooms/$roomId/players/$playerId/identityImageUrl'] = null;
-        updates['rooms/$roomId/players/$playerId/isSaved'] = false;
-        updates['rooms/$roomId/players/$playerId/savedAt'] = null;
-        updates['rooms/$roomId/players/$playerId/remainingChanges'] = 0;
-        updates['rooms/$roomId/players/$playerId/score'] = 0;
+        final pPath = _playerPath(roomId, playerId.toString());
+        updates['$pPath/identityName'] = null;
+        updates['$pPath/identityImageUrl'] = null;
+        updates['$pPath/isSaved'] = false;
+        updates['$pPath/savedAt'] = null;
+        updates['$pPath/remainingChanges'] = 0;
+        updates['$pPath/score'] = 0;
       });
     }
     
-    updates['rooms/$roomId/submissions'] = null;
-    updates['rooms/$roomId/status'] = RoomStatus.lobby.name;
-    updates['rooms/$roomId/turnIndex'] = 0;
-    updates['rooms/$roomId/currentRound'] = 1;
-    updates['rooms/$roomId/isOvertime'] = false;
-    updates['rooms/$roomId/timerEndTime'] = null;
-    updates['rooms/$roomId/timerType'] = null;
+    final rPath = _roomPath(roomId);
+    updates[_submissionsPath(roomId)] = null;
+    updates['$rPath/status'] = RoomStatus.lobby.name;
+    updates['$rPath/turnIndex'] = 0;
+    updates['$rPath/currentRound'] = 1;
+    updates['$rPath/isOvertime'] = false;
+    updates['$rPath/timerEndTime'] = null;
+    updates['$rPath/timerType'] = null;
     
     await _rtdb.ref().update(updates);
   }
 
   Future<void> removePlayer(String roomId, String playerId) async {
-    await _rtdb.ref('rooms/$roomId/players/$playerId').remove();
+    await _rtdb.ref(_playerPath(roomId, playerId)).remove();
   }
 
   Future<void> deleteRoom(String roomId) async {
-    await _rtdb.ref('rooms/$roomId').remove();
+    await _rtdb.ref(_roomPath(roomId)).remove();
   }
 
   Future<void> updateUserProfile(String uid, Map<String, dynamic> data) async {
@@ -191,13 +201,27 @@ class FirebaseService {
   }
 
   Future<void> sendSystemMessage(String roomId, String text) async {
-    await _rtdb.ref('rooms/$roomId').update({'lastSystemMessage': text});
+    await _rtdb.ref(_roomPath(roomId)).update({'lastSystemMessage': text});
   }
 
-  Future<void> cancelOnDisconnect(String roomId, String playerId) async {
-    final playerRef = _rtdb.ref('rooms/$roomId/players/$playerId/isOnline');
-    await playerRef.onDisconnect().set(false);
-    await playerRef.set(true);
+  Future<void> setupRoomDisconnectHook(String roomId) async {
+    final roomRef = _rtdb.ref(_roomPath(roomId));
+    await roomRef.onDisconnect().remove();
+  }
+
+  Future<void> setupPlayerDisconnectHook(String roomId, String playerId) async {
+    final playerRef = _rtdb.ref(_playerPath(roomId, playerId));
+    await playerRef.onDisconnect().remove();
+  }
+
+  Future<void> cancelRoomDisconnectHook(String roomId) async {
+    final roomRef = _rtdb.ref(_roomPath(roomId));
+    await roomRef.onDisconnect().cancel();
+  }
+
+  Future<void> cancelPlayerDisconnectHook(String roomId, String playerId) async {
+    final playerRef = _rtdb.ref(_playerPath(roomId, playerId));
+    await playerRef.onDisconnect().cancel();
   }
   
   Future<void> finalizeGameAndSyncStats(String roomId, List<String> winners, List<String> allPlayers) async {
@@ -223,7 +247,4 @@ class FirebaseService {
       rethrow;
     }
   }
-
-  // Deprecated - handled by finalizeGameAndSyncStats
-  Future<void> incrementGamesWon(String uid) async {}
 }

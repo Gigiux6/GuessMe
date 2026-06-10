@@ -1,7 +1,7 @@
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart'; // Per debugPrint
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
 /// Risultato dell'operazione di upload
@@ -16,76 +16,78 @@ class UploadResult {
 class StorageService {
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  /// Carica un'immagine su Firebase Storage dopo averla compressa.
-  /// 
-  /// [imageFile] L'XFile dell'immagine da caricare (compatibile con Web e Mobile).
-  /// [path] Il percorso di destinazione su Firebase Storage (es: 'avatars/user123.jpg').
+  /// Carica un'immagine su Firebase Storage applicando una compressione automatica.
   Future<UploadResult> uploadImage(XFile imageFile, String path) async {
     try {
-      // Leggiamo i byte del file (funziona su tutte le piattaforme)
-      print('DEBUG: Inizio lettura bytes...');
-      final Uint8List bytes = await imageFile.readAsBytes();
-      print('DEBUG: Bytes letti: ${bytes.length}');
-
-      // 1. Compressione dell'immagine
-      Uint8List? compressedData;
+      debugPrint('Inizio processo di upload per: $path');
       
-      try {
-        print('DEBUG: Inizio compressione...');
-        compressedData = await FlutterImageCompress.compressWithList(
-          bytes,
-          minWidth: 1024,
-          minHeight: 1024,
-          quality: 80,
-          format: CompressFormat.jpeg,
-        );
-        print('DEBUG: Compressione completata. Dimensione: ${compressedData?.length}');
-      } catch (e) {
-        print('DEBUG: Errore compressione: $e');
-        compressedData = bytes;
-      }
-
-      if (compressedData == null) {
-        return UploadResult(errorMessage: 'Impossibile processare l\'immagine.');
-      }
-
-      // 2. Caricamento su Firebase Storage
-      String finalPath = path;
-      if (!finalPath.toLowerCase().endsWith('.jpg') && !finalPath.toLowerCase().endsWith('.jpeg')) {
-        finalPath = '$finalPath.jpg';
-      }
-
-      print('DEBUG: Inizio upload su path: $finalPath');
-      final ref = _storage.ref().child(finalPath);
+      final Uint8List originalBytes = await imageFile.readAsBytes();
       
-      final uploadTask = ref.putData(
-        compressedData,
+      // 1. Comprimiamo l'immagine per risparmiare banda
+      final Uint8List dataToUpload = await _compressImage(originalBytes);
+
+      // 2. Assicuriamo l'estensione corretta (.jpg)
+      final String safePath = _ensureJpegExtension(path);
+
+      // 3. Esecuzione dell'upload
+      final ref = _storage.ref().child(safePath);
+      final uploadTask = await ref.putData(
+        dataToUpload,
         SettableMetadata(contentType: 'image/jpeg'),
       );
 
-      // Aggiungiamo un listener per vedere il progresso o eventuali errori immediati
-      uploadTask.snapshotEvents.listen(
-        (event) {
-          print('DEBUG Upload: ${event.bytesTransferred}/${event.totalBytes} (${(event.bytesTransferred/event.totalBytes*100).toStringAsFixed(1)}%)');
-        },
-        onError: (e) {
-          print('DEBUG: Errore nello stream di upload: $e');
-        }
-      );
-
-      final snapshot = await uploadTask;
-      print('DEBUG: Upload completato con successo.');
-      
-      // 3. Recupero dell'URL pubblico
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-      print('DEBUG: URL ottenuto: $downloadUrl');
+      // 4. Ottenimento URL pubblico
+      final downloadUrl = await uploadTask.ref.getDownloadURL();
+      debugPrint('Upload completato. URL: $downloadUrl');
       
       return UploadResult(url: downloadUrl);
       
     } on FirebaseException catch (e) {
-      return UploadResult(errorMessage: 'Errore Firebase: ${e.message}');
+      debugPrint('Firebase Storage Error: ${e.code} - ${e.message}');
+      return UploadResult(errorMessage: 'Errore di rete: Impossibile caricare l\'immagine.');
     } catch (e) {
-      return UploadResult(errorMessage: 'Errore imprevisto durante l\'upload: $e');
+      debugPrint('Imprevisto durante l\'upload: $e');
+      return UploadResult(errorMessage: 'Si è verificato un errore inaspettato.');
     }
+  }
+
+  /// Tenta di comprimere i byte dell'immagine. Se fallisce (es. su Web), 
+  /// restituisce i byte originali come fallback.
+  Future<Uint8List> _compressImage(Uint8List bytes) async {
+    try {
+      final compressedData = await FlutterImageCompress.compressWithList(
+        bytes,
+        minWidth: 1024,
+        minHeight: 1024,
+        quality: 80,
+        format: CompressFormat.jpeg,
+      );
+      
+      // Ritorna i dati compressi solo se l'operazione è andata a buon fine
+      return compressedData.isNotEmpty ? compressedData : bytes;
+    } catch (e) {
+      debugPrint('Attenzione: Compressione fallita (potrebbe essere Flutter Web). Uso i byte originali. Dettaglio: $e');
+      return bytes;
+    }
+  }
+
+  /// Pulisce il percorso assicurandosi che termini con .jpg
+  /// Sostituisce eventuali altre estensioni (es. .png, .gif) con .jpg
+  String _ensureJpegExtension(String path) {
+    final lowerPath = path.toLowerCase();
+    
+    if (lowerPath.endsWith('.jpg') || lowerPath.endsWith('.jpeg')) {
+      return path;
+    }
+    
+    // Trova l'ultimo punto nel nome del file per sostituire l'estensione esistente
+    final lastDotIndex = path.lastIndexOf('.');
+    if (lastDotIndex != -1 && (path.length - lastDotIndex) <= 5) {
+      // Es: "avatar.png" -> "avatar.jpg"
+      return '${path.substring(0, lastDotIndex)}.jpg';
+    }
+    
+    // Se non c'era estensione, la aggiungiamo semplicemente
+    return '$path.jpg';
   }
 }

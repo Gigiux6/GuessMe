@@ -73,7 +73,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (image == null) return;
 
       if (!mounted) return;
-      final CroppedFile? croppedFile = await _profileStorageService.cropImage(image, context);
+      final CroppedFile? croppedFile = await _profileStorageService.cropImage(
+        imageFile: image,
+        context: context,
+        title: userProvider.t('crop_title'),
+        cropText: userProvider.t('crop'),
+        cancelText: userProvider.t('cancel'),
+        rotateLeftText: userProvider.t('rotate_left'),
+        rotateRightText: userProvider.t('rotate_right'),
+      );
       if (croppedFile == null) return;
 
       setState(() {

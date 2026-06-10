@@ -41,26 +41,24 @@ class Room {
     this.timerType,
   });
 
-  factory Room.fromMap(String id, Map<dynamic, dynamic> map) {
-    var statusStr = map['status'] ?? 'lobby';
-    var modeStr = map['mode'] ?? 'preset';
+  factory Room.fromMap(String id, Map<String, dynamic> map) {
+    final statusStr = map['status'] ?? 'lobby';
+    final modeStr = map['mode'] ?? 'preset';
     
-    var playersMap = map['players'] as Map<dynamic, dynamic>? ?? {};
-    Map<String, Player> players = {};
-    playersMap.forEach((key, value) {
-      if (value != null) {
-        players[key.toString()] = Player.fromMap(key.toString(), value as Map<dynamic, dynamic>);
-      }
-    });
-
+    final playersMap = map['players'] as Map<dynamic, dynamic>? ?? {};
+    
     return Room(
       id: id,
       hostId: map['hostId'] ?? '',
       status: RoomStatus.values.firstWhere((e) => e.name == statusStr, orElse: () => RoomStatus.lobby),
       mode: GameMode.values.firstWhere((e) => e.name == modeStr, orElse: () => GameMode.preset),
       turnIndex: map['turnIndex'] ?? 0,
-      turnOrder: map['turnOrder'] != null ? List<String>.from(map['turnOrder'] as List<dynamic>) : [],
-      players: players,
+      turnOrder: List<String>.from(map['turnOrder'] ?? []),
+      players: {
+        for (final entry in playersMap.entries)
+          if (entry.value != null)
+            entry.key.toString(): Player.fromMap(entry.key.toString(), entry.value as Map)
+      },
       presetPack: map['presetPack'] ?? 'cinema',
       lastSystemMessage: map['lastSystemMessage'],
       characterChangesLimit: map['characterChangesLimit'] ?? 0,
@@ -91,5 +89,43 @@ class Room {
       'timerEndTime': timerEndTime,
       'timerType': timerType,
     };
+  }
+
+  Room copyWith({
+    String? id,
+    String? hostId,
+    RoomStatus? status,
+    GameMode? mode,
+    int? turnIndex,
+    List<String>? turnOrder,
+    Map<String, Player>? players,
+    String? presetPack,
+    String? lastSystemMessage,
+    int? characterChangesLimit,
+    int? timeLimit,
+    int? targetPoints,
+    int? currentRound,
+    bool? isOvertime,
+    int? timerEndTime,
+    String? timerType,
+  }) {
+    return Room(
+      id: id ?? this.id,
+      hostId: hostId ?? this.hostId,
+      status: status ?? this.status,
+      mode: mode ?? this.mode,
+      turnIndex: turnIndex ?? this.turnIndex,
+      turnOrder: turnOrder ?? this.turnOrder,
+      players: players ?? this.players,
+      presetPack: presetPack ?? this.presetPack,
+      lastSystemMessage: lastSystemMessage ?? this.lastSystemMessage,
+      characterChangesLimit: characterChangesLimit ?? this.characterChangesLimit,
+      timeLimit: timeLimit ?? this.timeLimit,
+      targetPoints: targetPoints ?? this.targetPoints,
+      currentRound: currentRound ?? this.currentRound,
+      isOvertime: isOvertime ?? this.isOvertime,
+      timerEndTime: timerEndTime ?? this.timerEndTime,
+      timerType: timerType ?? this.timerType,
+    );
   }
 }
