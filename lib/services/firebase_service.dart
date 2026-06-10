@@ -26,12 +26,12 @@ class FirebaseService {
       if (event.snapshot.value == null) return null;
       
       final rawData = event.snapshot.value as Map;
-      final fullRoomMap = rawData.map((key, value) => MapEntry(key.toString(), value));
+      final fullRoomMap = rawData.map<String, dynamic>((key, value) => MapEntry(key.toString(), value));
       
       // Ensure players map has string keys
       if (fullRoomMap['players'] != null) {
         final rawPlayers = fullRoomMap['players'] as Map;
-        fullRoomMap['players'] = rawPlayers.map((k, v) => MapEntry(k.toString(), v));
+        fullRoomMap['players'] = rawPlayers.map<String, dynamic>((k, v) => MapEntry(k.toString(), v));
       }
       
       return Room.fromMap(roomId, fullRoomMap);
