@@ -206,22 +206,38 @@ class FirebaseService {
 
   Future<void> setupRoomDisconnectHook(String roomId) async {
     final roomRef = _rtdb.ref(_roomPath(roomId));
+    // On web release, keep the connection alive to prevent spurious
+    // onDisconnect triggers during page transitions.
+    if (kIsWeb) {
+      roomRef.keepSynced(true);
+      _rtdb.goOnline();
+    }
     await roomRef.onDisconnect().remove();
   }
 
   Future<void> setupPlayerDisconnectHook(String roomId, String playerId) async {
     final playerRef = _rtdb.ref(_playerPath(roomId, playerId));
+    if (kIsWeb) {
+      playerRef.keepSynced(true);
+      _rtdb.goOnline();
+    }
     await playerRef.onDisconnect().remove();
   }
 
   Future<void> cancelRoomDisconnectHook(String roomId) async {
     final roomRef = _rtdb.ref(_roomPath(roomId));
     await roomRef.onDisconnect().cancel();
+    if (kIsWeb) {
+      roomRef.keepSynced(false);
+    }
   }
 
   Future<void> cancelPlayerDisconnectHook(String roomId, String playerId) async {
     final playerRef = _rtdb.ref(_playerPath(roomId, playerId));
     await playerRef.onDisconnect().cancel();
+    if (kIsWeb) {
+      playerRef.keepSynced(false);
+    }
   }
   
   Future<void> finalizeGameAndSyncStats(String roomId, List<String> winners, List<String> allPlayers) async {
