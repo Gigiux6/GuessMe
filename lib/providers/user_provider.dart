@@ -219,7 +219,8 @@ class UserProvider with ChangeNotifier {
   Future<void> incrementWins() async {
     if (_user == null) return;
     
-    await _firebaseService.incrementGamesWon(_user!.uid);
+    // Stats are now synchronized automatically by GameProvider/FirebaseService
+    // We just need to refresh the local user profile
     final profile = await _firebaseService.getUserProfile(_user!.uid);
     if (profile != null) {
       _user = UserModel.fromMap(_user!.uid, profile);

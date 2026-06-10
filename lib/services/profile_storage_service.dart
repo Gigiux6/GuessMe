@@ -32,7 +32,7 @@ class ProfileStorageService {
   /// Consente all'utente di ritagliare l'immagine in formato 1:1 con un'anteprima circolare.
   Future<CroppedFile?> cropImage({
     required XFile imageFile,
-    BuildContext? context,
+    required BuildContext context,
     String title = 'Ritaglia',
     String cropText = 'Conferma',
     String cancelText = 'Annulla',

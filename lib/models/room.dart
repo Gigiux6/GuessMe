@@ -57,7 +57,7 @@ class Room {
       players: {
         for (final entry in playersMap.entries)
           if (entry.value != null)
-            entry.key.toString(): Player.fromMap(entry.key.toString(), entry.value as Map)
+            entry.key.toString(): Player.fromMap(entry.key.toString(), Map<String, dynamic>.from(entry.value as Map))
       },
       presetPack: map['presetPack'] ?? 'cinema',
       lastSystemMessage: map['lastSystemMessage'],
