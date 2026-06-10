@@ -54,12 +54,12 @@ class Player {
     return {
       'name': name,
       'isSaved': isSaved,
-      'savedAt': savedAt,
+      'savedAt': savedAt?.toDouble(), // FIXED: Cast to double for web int64 pigeon crash
       'identityName': identityName,
       'identityImageUrl': identityImageUrl,
       'avatarUrl': avatarUrl,
-      'remainingChanges': remainingChanges,
-      'score': score,
+      'remainingChanges': remainingChanges.toDouble(), // FIXED
+      'score': score.toDouble(), // FIXED
       'isOnline': isOnline,
     };
   }

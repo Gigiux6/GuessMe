@@ -76,17 +76,17 @@ class Room {
       'hostId': hostId,
       'status': status.name,
       'mode': mode.name,
-      'turnIndex': turnIndex,
+      'turnIndex': turnIndex.toDouble(), // FIXED: Cast to double for web int64 pigeon crash
       'turnOrder': turnOrder,
       'players': players.map((key, value) => MapEntry(key, value.toMap())),
       'presetPack': presetPack,
       'lastSystemMessage': lastSystemMessage,
-      'characterChangesLimit': characterChangesLimit,
-      'timeLimit': timeLimit,
-      'targetPoints': targetPoints,
-      'currentRound': currentRound,
+      'characterChangesLimit': characterChangesLimit.toDouble(), // FIXED
+      'timeLimit': timeLimit.toDouble(), // FIXED
+      'targetPoints': targetPoints.toDouble(), // FIXED
+      'currentRound': currentRound.toDouble(), // FIXED
       'isOvertime': isOvertime,
-      'timerEndTime': timerEndTime,
+      'timerEndTime': timerEndTime?.toDouble(), // FIXED
       'timerType': timerType,
     };
   }
