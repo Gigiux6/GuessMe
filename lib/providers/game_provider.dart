@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../models/room.dart';
 import '../models/player.dart';
 import '../services/firebase_service.dart';
@@ -63,10 +64,25 @@ class GameProvider with ChangeNotifier {
           // Se la stanza sparisce ma noi pensavamo di esserci dentro, allora chiudiamo
           // Evitiamo ghost events iniziali attendendo almeno un evento valido.
           if (hasSeenValidRoom && currentRoom != null) {
-            _roomSubscription?.cancel();
-            currentRoom = null;
-            currentPlayerId = null;
-            notifyListeners();
+            if (kIsWeb) {
+              // On web release, WebSocket reconnections can cause spurious null
+              // events. Wait briefly and re-verify before treating as deleted.
+              Future.delayed(const Duration(seconds: 2), () {
+                _firebaseService.getRoomStream(roomId).first.then((recheck) {
+                  if (recheck == null && currentRoom?.id == roomId) {
+                    _roomSubscription?.cancel();
+                    currentRoom = null;
+                    currentPlayerId = null;
+                    notifyListeners();
+                  }
+                });
+              });
+            } else {
+              _roomSubscription?.cancel();
+              currentRoom = null;
+              currentPlayerId = null;
+              notifyListeners();
+            }
           }
         } else {
           hasSeenValidRoom = true;
@@ -222,7 +238,6 @@ class GameProvider with ChangeNotifier {
 
     try {
       await _firebaseService.createRoom(room);
-      await _firebaseService.setupRoomDisconnectHook(roomId);
     } catch (e) {
       debugPrint('Firebase createRoom failed: $e. Proceeding locally.');
       // Proceed locally for UI testing without Firebase
@@ -231,9 +246,14 @@ class GameProvider with ChangeNotifier {
     }
     
     try {
+      // IMPORTANT: listenToRoom must complete (first valid snapshot received)
+      // BEFORE registering the onDisconnect hook. On web release builds the
+      // WebSocket may briefly disconnect during the initial handshake; if the
+      // hook is registered too early Firebase fires it and deletes the room.
       await listenToRoom(roomId);
+      await _firebaseService.setupRoomDisconnectHook(roomId);
     } catch (e) {
-      debugPrint('Firebase listenToRoom failed: $e');
+      debugPrint('Firebase listenToRoom/disconnect hook failed: $e');
     }
     _setLoading(false);
   }
@@ -255,8 +275,10 @@ class GameProvider with ChangeNotifier {
       return false;
     }
     
-    await _firebaseService.setupPlayerDisconnectHook(roomId, uid);
+    // Register disconnect hook AFTER the WebSocket is established
+    // (i.e., after listenToRoom receives the first valid snapshot).
     await listenToRoom(roomId);
+    await _firebaseService.setupPlayerDisconnectHook(roomId, uid);
     _setLoading(false);
     return true;
   }
