@@ -11,6 +11,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../data/game_packs.dart';
 import 'home_screen.dart';
+import '../services/debug_logger.dart';
 
 class LobbyScreen extends StatefulWidget {
   const LobbyScreen({super.key});
@@ -119,9 +120,12 @@ class _LobbyScreenState extends State<LobbyScreen> {
     final isHost = gameProvider.isHost;
 
     if (room == null) {
+      final _log = DebugLogger.instance;
+      _log.log('LOBBY', 'build: room=NULL, currentPlayerId=${gameProvider.currentPlayerId}, isLeaving=$_isLeaving, isLoading=${gameProvider.isLoading}');
       // Se siamo qui e il room è null, aspettiamo un attimo prima di dare errore,
       // a meno che non sappiamo per certo che la stanza non esiste più (es. host uscito).
       if (gameProvider.currentPlayerId == null && !_isLeaving) {
+        _log.log('LOBBY', 'NAVIGATING BACK TO HOME (playerId=null, not leaving)');
          WidgetsBinding.instance.addPostFrameCallback((_) {
           if (ModalRoute.of(context)?.isCurrent == true) {
             context.read<UserProvider>().setLastRoomId(null);
@@ -134,6 +138,8 @@ class _LobbyScreenState extends State<LobbyScreen> {
             );
           }
         });
+      } else {
+        _log.log('LOBBY', 'Showing loading spinner (playerId=${gameProvider.currentPlayerId})');
       }
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }

@@ -11,6 +11,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'user_provider.dart';
 import '../data/translations.dart';
 import '../services/profile_storage_service.dart';
+import '../services/debug_logger.dart';
 
 class GameProvider with ChangeNotifier {
   final FirebaseService _firebaseService = FirebaseService();
@@ -53,6 +54,8 @@ class GameProvider with ChangeNotifier {
   }
 
   Future<void> listenToRoom(String roomId) async {
+    final _log = DebugLogger.instance;
+    _log.log('LISTEN', 'listenToRoom($roomId) START');
     _roomSubscription?.cancel();
     
     Completer<void> completer = Completer<void>();
@@ -61,15 +64,20 @@ class GameProvider with ChangeNotifier {
     _roomSubscription = _firebaseService.getRoomStream(roomId).listen(
       (room) {
         if (room == null) {
+          _log.log('LISTEN', 'NULL event. hasSeenValid=$hasSeenValidRoom, currentRoom=${currentRoom?.id}, currentPlayerId=$currentPlayerId');
           // Se la stanza sparisce ma noi pensavamo di esserci dentro, allora chiudiamo
           // Evitiamo ghost events iniziali attendendo almeno un evento valido.
           if (hasSeenValidRoom && currentRoom != null) {
             if (kIsWeb) {
+              _log.log('LISTEN', 'Web: scheduling 2s re-check before cleanup...');
               // On web release, WebSocket reconnections can cause spurious null
               // events. Wait briefly and re-verify before treating as deleted.
               Future.delayed(const Duration(seconds: 2), () {
+                _log.log('LISTEN', 'Web: re-checking room $roomId after delay...');
                 _firebaseService.getRoomStream(roomId).first.then((recheck) {
+                  _log.log('LISTEN', 'Web: re-check result: ${recheck == null ? "NULL" : "EXISTS (status=${recheck.status.name})"}');
                   if (recheck == null && currentRoom?.id == roomId) {
+                    _log.log('LISTEN', 'Web: confirmed deleted. Cleaning up.');
                     _roomSubscription?.cancel();
                     currentRoom = null;
                     currentPlayerId = null;
@@ -78,15 +86,23 @@ class GameProvider with ChangeNotifier {
                 });
               });
             } else {
+              _log.log('LISTEN', 'Non-web: cleaning up immediately');
               _roomSubscription?.cancel();
               currentRoom = null;
               currentPlayerId = null;
               notifyListeners();
             }
+          } else {
+            _log.log('LISTEN', 'Ignoring null event (initial ghost or no currentRoom)');
+          }
+          if (!completer.isCompleted) {
+            _log.log('LISTEN', 'Completing completer (null event, first data)');
+            completer.complete();
           }
         } else {
           hasSeenValidRoom = true;
           currentRoom = room;
+          _log.log('LISTEN', 'Valid room: status=${room.status.name}, players=${room.players.length}');
           
           if (isHost) {
             // Sincronizza il turnOrder (perché i guest potrebbero non avere i permessi per farlo)
@@ -117,11 +133,14 @@ class GameProvider with ChangeNotifier {
           }
           
           notifyListeners();
-          if (!completer.isCompleted) completer.complete();
+          if (!completer.isCompleted) {
+            _log.log('LISTEN', 'Completing completer (first valid room)');
+            completer.complete();
+          }
         }
       },
       onError: (error) {
-        debugPrint('Firestore stream error: $error');
+        _log.log('LISTEN', 'STREAM ERROR: $error');
         _roomSubscription?.cancel();
         currentRoom = null;
         currentPlayerId = null;
@@ -132,9 +151,7 @@ class GameProvider with ChangeNotifier {
 
     Future.delayed(const Duration(seconds: 15), () {
       if (!completer.isCompleted) {
-        debugPrint('Warning: listenToRoom took longer than 15 seconds to receive initial data.');
-        // We no longer cancel the subscription here because Web connections
-        // can sometimes take longer to establish the WebSocket handshake.
+        _log.log('LISTEN', 'TIMEOUT: 15s elapsed without initial data');
         completer.complete();
       }
     });
@@ -216,6 +233,8 @@ class GameProvider with ChangeNotifier {
   }
 
   Future<void> createRoom(String playerName, String uid, {String? avatarUrl}) async {
+    final _log = DebugLogger.instance;
+    _log.log('CREATE', 'createRoom START (name=$playerName, uid=$uid)');
     _setLoading(true);
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     Random rnd = Random();
@@ -223,6 +242,7 @@ class GameProvider with ChangeNotifier {
         6, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
     
     currentPlayerId = uid;
+    _log.log('CREATE', 'Generated roomId=$roomId');
 
     Player host = Player(id: uid, name: playerName, avatarUrl: avatarUrl);
     
@@ -238,24 +258,25 @@ class GameProvider with ChangeNotifier {
 
     try {
       await _firebaseService.createRoom(room);
+      _log.log('CREATE', 'Firebase createRoom OK');
     } catch (e) {
-      debugPrint('Firebase createRoom failed: $e. Proceeding locally.');
-      // Proceed locally for UI testing without Firebase
+      _log.log('CREATE', 'Firebase createRoom FAILED: $e');
       currentRoom = room;
       notifyListeners();
     }
     
     try {
-      // IMPORTANT: listenToRoom must complete (first valid snapshot received)
-      // BEFORE registering the onDisconnect hook. On web release builds the
-      // WebSocket may briefly disconnect during the initial handshake; if the
-      // hook is registered too early Firebase fires it and deletes the room.
+      _log.log('CREATE', 'Calling listenToRoom...');
       await listenToRoom(roomId);
+      _log.log('CREATE', 'listenToRoom completed. currentRoom=${currentRoom?.id}, status=${currentRoom?.status.name}');
+      _log.log('CREATE', 'Calling setupRoomDisconnectHook...');
       await _firebaseService.setupRoomDisconnectHook(roomId);
+      _log.log('CREATE', 'setupRoomDisconnectHook done');
     } catch (e) {
-      debugPrint('Firebase listenToRoom/disconnect hook failed: $e');
+      _log.log('CREATE', 'listenToRoom/hook FAILED: $e');
     }
     _setLoading(false);
+    _log.log('CREATE', 'createRoom END. currentRoom=${currentRoom?.id}, currentPlayerId=$currentPlayerId');
   }
 
   Future<void> saveRoomId(String? roomId, UserProvider userProvider) async {
@@ -313,10 +334,11 @@ class GameProvider with ChangeNotifier {
   }
 
   Future<void> leaveRoom({String? name, String? language}) async {
+    final _log = DebugLogger.instance;
+    _log.log('LEAVE', 'leaveRoom called. isHost=$isHost, roomId=${currentRoom?.id}');
     if (currentRoom == null || currentPlayerId == null) return;
     String roomId = currentRoom!.id;
     if (isHost) {
-      // Clean up custom images
       await ProfileStorageService().deleteCustomRoomImages(roomId);
       await _firebaseService.cancelRoomDisconnectHook(roomId);
       await _firebaseService.deleteRoom(roomId);
@@ -331,6 +353,7 @@ class GameProvider with ChangeNotifier {
     _roomSubscription?.cancel();
     currentRoom = null;
     currentPlayerId = null;
+    _log.log('LEAVE', 'leaveRoom done. State cleared.');
     notifyListeners();
   }
 
