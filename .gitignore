@@ -54,3 +54,16 @@ build/
 .dart_tool/
 .firebase/
 
+# File di configurazione privati di Firebase/Google
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+macos/Runner/GoogleService-Info.plist
+
+# Chiavi e certificati (Firma Android)
+*.jks
+*.keystore
+android/key.properties
+
+# Variabili d'ambiente (se mai le userai)
+.env
+.env.*
