@@ -66,14 +66,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           color: Colors.grey[300],
                         ),
                         child: ClipOval(
-                          child: user?.avatarUrl != null
+                          child: (user?.avatarUrl != null && user!.avatarUrl.isNotEmpty)
                               ? CachedNetworkImage(
                                   imageUrl: user!.avatarUrl,
                                   fit: BoxFit.cover,
                                   placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
                                   errorWidget: (context, url, error) => const Icon(Icons.person, color: Colors.black),
                                 )
-                              : const Icon(Icons.person, color: Colors.black),
+                              : const Icon(Icons.person, color: Colors.grey, size: 40),
                         ),
                       ),
                       const SizedBox(width: 16),

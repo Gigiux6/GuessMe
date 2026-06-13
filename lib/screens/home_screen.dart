@@ -203,12 +203,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           border: Border.all(color: Colors.black, width: 3),
                         ),
                         child: ClipOval(
-                          child: CachedNetworkImage(
-                            imageUrl: user.avatarUrl,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                            errorWidget: (context, url, error) => const Icon(Icons.person),
-                          ),
+                          child: user.avatarUrl.isNotEmpty
+                              ? CachedNetworkImage(
+                                  imageUrl: user.avatarUrl,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                                  errorWidget: (context, url, error) => const Icon(Icons.person, size: 50),
+                                )
+                              : const Icon(Icons.person, size: 60, color: Colors.grey),
                         ),
                       ),
                     ),

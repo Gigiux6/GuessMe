@@ -23,18 +23,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _isLinking = false;
   final ProfileStorageService _profileStorageService = ProfileStorageService();
   
-  // Cartoon/NFT style avatars
-  final List<String> _avatars = [
-    'https://api.dicebear.com/7.x/adventurer/png?seed=Knight',
-    'https://api.dicebear.com/7.x/adventurer/png?seed=Witch',
-    'https://api.dicebear.com/7.x/adventurer/png?seed=Wolf',
-    'https://api.dicebear.com/7.x/adventurer/png?seed=Mage',
-    'https://api.dicebear.com/7.x/adventurer/png?seed=King',
-    'https://api.dicebear.com/7.x/adventurer/png?seed=Villager',
-    'https://api.dicebear.com/7.x/adventurer/png?seed=Ranger',
-    'https://api.dicebear.com/7.x/adventurer/png?seed=Blacksmith',
-    'https://api.dicebear.com/7.x/adventurer/png?seed=Healer',
-  ];
 
   String? _initError;
 
@@ -322,7 +310,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         final name = (existingName != null && existingName.isNotEmpty && existingName != 'Giocatore')
             ? existingName
             : (user.user!.displayName ?? 'Giocatore');
-        final photo = user.user!.photoURL ?? 'https://api.dicebear.com/7.x/adventurer/png?seed=Knight';
+        final photo = user.user!.photoURL ?? '';
         await prefs.setString('user_name', name);
         await prefs.setString('user_avatar', photo);
         userProvider.resetInitializationFlag();
@@ -650,7 +638,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         final name = (existingName != null && existingName.isNotEmpty && existingName != 'Giocatore')
             ? existingName
             : (user.user!.displayName ?? 'Giocatore');
-        final photo = user.user!.photoURL ?? 'https://api.dicebear.com/7.x/adventurer/png?seed=Knight';
+        final photo = user.user!.photoURL ?? '';
         await prefs.setString('user_name', name);
         await prefs.setString('user_avatar', photo);
         userProvider.resetInitializationFlag();
@@ -720,6 +708,173 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ],
           ),
         );
+      }
+    }
+  }
+
+  void _showDeleteAccountDialog() {
+    final userProvider = context.read<UserProvider>();
+    
+    if (userProvider.isAnonymous) {
+      showDialog(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(userProvider.t('delete_account'), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+          content: Text(userProvider.t('delete_account_warning')),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(userProvider.t('cancel'), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(dialogContext);
+                _executeDeleteAccount(userProvider);
+              },
+              child: Text(userProvider.t('confirm'), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    
+    bool hasEmailProvider = false;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      for (var info in user.providerData) {
+        if (info.providerId == 'password') {
+          hasEmailProvider = true;
+          break;
+        }
+      }
+    }
+    
+    if (hasEmailProvider) {
+      String password = '';
+      String? errorText;
+      
+      showDialog(
+        context: context,
+        builder: (dialogContext) {
+          return StatefulBuilder(
+            builder: (context, setStateDialog) {
+              return AlertDialog(
+                title: Text(userProvider.t('delete_account'), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(userProvider.t('delete_account_warning')),
+                    const SizedBox(height: 16),
+                    TextField(
+                      obscureText: true,
+                      onChanged: (val) {
+                        password = val;
+                        if (errorText != null) setStateDialog(() => errorText = null);
+                      },
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        errorText: errorText,
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: Text(userProvider.t('cancel'), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      if (password.isEmpty) {
+                        setStateDialog(() => errorText = userProvider.t('invalid_password'));
+                        return;
+                      }
+                      Navigator.pop(dialogContext);
+                      _executeDeleteAccount(userProvider, password: password, email: user!.email);
+                    },
+                    child: Text(userProvider.t('confirm'), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                  ),
+                ],
+              );
+            }
+          );
+        }
+      );
+    } else {
+      showDialog(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(userProvider.t('delete_account'), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+          content: Text(userProvider.t('delete_account_warning')),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(userProvider.t('cancel'), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(dialogContext);
+                _executeDeleteAccount(userProvider);
+              },
+              child: Text(userProvider.t('confirm'), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  void _executeDeleteAccount(UserProvider userProvider, {String? email, String? password}) async {
+    setState(() {
+      _isLinking = true;
+    });
+    
+    try {
+      await userProvider.deleteAccount(context, email: email, password: password);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLinking = false;
+        });
+        
+        final String errStr = e.toString();
+        if (errStr.contains('requires_recent_login') || errStr.contains('requires-recent-login')) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: Text(userProvider.t('auth_error'), style: const TextStyle(fontWeight: FontWeight.bold)),
+              content: Text(userProvider.t('requires_recent_login_msg')),
+              actions: [
+                TextButton(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    await userProvider.signOut();
+                    if (mounted) {
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: const Text('OK', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          );
+        } else {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: Text(userProvider.t('auth_error'), style: const TextStyle(fontWeight: FontWeight.bold)),
+              content: Text(_getFriendlyErrorMessage(e, userProvider)),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('OK', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          );
+        }
       }
     }
   }
@@ -994,78 +1149,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 30),
-            _buildNeubrutalistCard(
-              color: cyan,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(userProvider.t('choose_avatar'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black)),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: _avatars.contains(_selectedAvatar) ? _selectedAvatar : null,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.white,
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.black, width: 2),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.black, width: 2),
-                      ),
-                    ),
-                    hint: Text(
-                      userProvider.t('choose_avatar'),
-                      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-                    ),
-                    isExpanded: true,
-                    dropdownColor: Colors.white,
-                    iconEnabledColor: Colors.black,
-                    items: _avatars.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final avatar = entry.value;
-                      final seed = 'Avatar ${index + 1}';
-                      return DropdownMenuItem<String>(
-                        value: avatar,
-                        child: Row(
-                          children: [
-                            ClipOval(
-                              child: CachedNetworkImage(
-                                imageUrl: avatar,
-                                width: 30,
-                                height: 30,
-                                fit: BoxFit.cover,
-                                placeholder: (context, url) => const SizedBox(width: 30, height: 30, child: CircularProgressIndicator(strokeWidth: 2)),
-                                errorWidget: (context, url, error) => const Icon(Icons.person, color: Colors.black),
-                              ),
-                            ),
-                            const SizedBox(width: 15),
-                            Text(
-                              seed,
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _selectedAvatar = value;
-                        });
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ),
+
             const SizedBox(height: 40),
             CustomButton(
               text: userProvider.t('save_changes'),
               onPressed: _save,
               color: pink,
+            ),
+            const SizedBox(height: 20),
+            TextButton(
+              onPressed: _showDeleteAccountDialog,
+              child: Text(
+                userProvider.t('delete_account'),
+                style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, decoration: TextDecoration.underline),
+              ),
             ),
           ],
         ),

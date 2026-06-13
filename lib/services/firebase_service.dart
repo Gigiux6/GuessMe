@@ -211,6 +211,10 @@ class FirebaseService {
     return snap.data();
   }
 
+  Future<void> deleteUserProfile(String uid) async {
+    await _firestore.collection('users').doc(uid).delete();
+  }
+
   Future<void> sendSystemMessage(String roomId, String text) async {
     await _rtdb.ref(_roomPath(roomId)).update({'lastSystemMessage': text});
   }

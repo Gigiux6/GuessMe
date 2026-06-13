@@ -8,6 +8,8 @@ import '../data/translations.dart';
 import '../data/game_packs.dart';
 import '../services/data_loader.dart';
 import '../services/auth_service.dart';
+import '../utils/security_utils.dart';
+import '../screens/profile_setup_screen.dart';
 
 class UserProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -122,7 +124,7 @@ class UserProvider with ChangeNotifier {
     _user = UserModel(
       uid: uid,
       name: name,
-      avatarUrl: avatar ?? _getDefaultAvatar(name),
+      avatarUrl: avatar ?? '',
     );
   }
 
@@ -134,7 +136,7 @@ class UserProvider with ChangeNotifier {
       _user = UserModel(
         uid: uid,
         name: name,
-        avatarUrl: avatar ?? _getDefaultAvatar(name),
+        avatarUrl: avatar ?? '',
       );
       await _firebaseService.updateUserProfile(uid, _user!.toMap());
     }
@@ -159,7 +161,7 @@ class UserProvider with ChangeNotifier {
       debugPrint('Firebase sign-in failed: $e. Using local UID.');
     }
     
-    final avatar = _getDefaultAvatar(name);
+    final avatar = '';
     await prefs.setString(_avatarKey, avatar);
     
     _user = UserModel(
@@ -267,9 +269,7 @@ class UserProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  String _getDefaultAvatar(String name) {
-    return 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(name)}&size=256&background=random';
-  }
+
 
   String t(String key, {Map<String, String>? args}) {
     return AppTranslations.translate(key, _language, args: args);
@@ -288,7 +288,7 @@ class UserProvider with ChangeNotifier {
         ? existingName
         : (firebaseUser.displayName ?? 'Giocatore');
         
-    final photo = firebaseUser.photoURL ?? _user?.avatarUrl ?? _getDefaultAvatar(name);
+    final photo = firebaseUser.photoURL ?? _user?.avatarUrl ?? '';
     
     await prefs.setString(_nameKey, name);
     await prefs.setString(_avatarKey, photo);
@@ -348,6 +348,50 @@ class UserProvider with ChangeNotifier {
       await init();
     } catch (e) {
       debugPrint('Errore in signOut: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteAccount(BuildContext context, {String? email, String? password}) async {
+    if (_user == null) return;
+    
+    final isAnon = isAnonymous;
+    
+    try {
+      if (isAnon) {
+        await _firebaseService.deleteUserProfile(_user!.uid);
+        await _auth.currentUser?.delete();
+      } else {
+        if (email != null && password != null) {
+          bool reAuth = await SecurityUtils.reauthenticateUser(email: email, currentPassword: password);
+          if (!reAuth) {
+            throw Exception(t('invalid_credentials'));
+          }
+        }
+        
+        await _firebaseService.deleteUserProfile(_user!.uid);
+        await _auth.currentUser?.delete();
+      }
+      
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_nameKey);
+      await prefs.remove(_avatarKey);
+      _user = null;
+      resetInitializationFlag();
+      
+      if (!isAnon) {
+        await _authService.signOut();
+      }
+      
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const ProfileSetupScreen()),
+        (route) => false,
+      );
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        throw Exception(t('requires_recent_login'));
+      }
       rethrow;
     }
   }

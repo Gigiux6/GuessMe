@@ -149,9 +149,9 @@ class GameOverScreen extends StatelessWidget {
                                   radius: 18,
                                   backgroundColor: Colors.grey.shade200,
                                   child: ClipOval(
-                                    child: p.avatarUrl != null 
+                                    child: (p.avatarUrl != null && p.avatarUrl!.isNotEmpty)
                                       ? Image.network(p.avatarUrl!, fit: BoxFit.cover, width: 36, height: 36)
-                                      : const Icon(Icons.person, size: 20),
+                                      : const Icon(Icons.person, size: 20, color: Colors.grey),
                                   ),
                                 ),
                                 title: Text(

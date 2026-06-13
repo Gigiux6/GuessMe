@@ -273,14 +273,16 @@ class _LobbyScreenState extends State<LobbyScreen> {
                       leading: CircleAvatar(
                         backgroundColor: Colors.transparent,
                         child: ClipOval(
-                          child: CachedNetworkImage(
-                            imageUrl: player.avatarUrl ?? '',
-                            fit: BoxFit.cover,
-                            width: 40,
-                            height: 40,
-                            placeholder: (context, url) => const CircularProgressIndicator(),
-                            errorWidget: (context, url, error) => const Icon(Icons.person, color: Colors.black),
-                          ),
+                          child: (player.avatarUrl != null && player.avatarUrl!.isNotEmpty)
+                              ? CachedNetworkImage(
+                                  imageUrl: player.avatarUrl!,
+                                  fit: BoxFit.cover,
+                                  width: 40,
+                                  height: 40,
+                                  placeholder: (context, url) => const CircularProgressIndicator(),
+                                  errorWidget: (context, url, error) => const Icon(Icons.person, color: Colors.black),
+                                )
+                              : const Icon(Icons.person, color: Colors.black, size: 40),
                         ),
                       ),
                       title: Text(
