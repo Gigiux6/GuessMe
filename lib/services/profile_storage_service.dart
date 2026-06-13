@@ -43,6 +43,8 @@ class ProfileStorageService {
       return await _cropper.cropImage(
         sourcePath: imageFile.path,
         aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        maxWidth: 500,
+        maxHeight: 500,
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: title,

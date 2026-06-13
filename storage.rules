@@ -2,18 +2,45 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     
-    // Regole per le foto profilo degli utenti
+    // ------------------------------------
+    // FUNZIONI DI SUPPORTO STORAGE
+    // ------------------------------------
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Valida che il file sia un'immagine e previeni attacchi Denial of Wallet (Max 5MB)
+    function isValidImage() {
+      return request.resource.contentType.matches('image/.*') 
+             && request.resource.size < 5 * 1024 * 1024; // < 5 MB
+    }
+
+    // ------------------------------------
+    // REGOLE PER I PERCORSI
+    // ------------------------------------
+
+    // Foto Profilo (L'utente può caricare solo un file corrispondente al suo UID)
     match /profiles/{fileName} {
       allow read: if true;
-      allow write: if request.auth != null 
+      allow write: if isAuthenticated() 
                    && request.auth.token.firebase.sign_in_provider != 'anonymous'
-                   && fileName == request.auth.uid + '.jpg';
+                   // Il nome del file deve essere quello del proprio UID
+                   && fileName == request.auth.uid + '.jpg'
+                   // Deve essere strettamente un'immagine entro i 5MB
+                   && isValidImage();
     }
     
-    // Regole per le foto dei personaggi personalizzati della modalità Custom
+    // Foto dei personaggi personalizzati
     match /custom_identities/{roomId}/{imageId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isAuthenticated() && isValidImage();
+    }
+
+    // ------------------------------------
+    // FALLBACK: DEFAULT DENY (Blocca tutto il resto)
+    // ------------------------------------
+    match /{allPaths=**} {
+      allow read, write: if false;
     }
   }
 }

@@ -43,20 +43,36 @@ class AuthService {
     try {
       if (kIsWeb) {
         final GoogleAuthProvider googleProvider = GoogleAuthProvider();
-        final UserCredential userCredential = await user.linkWithPopup(googleProvider);
-        return userCredential.user;
+        try {
+          final UserCredential userCredential = await user.linkWithPopup(googleProvider);
+          return userCredential.user;
+        } on FirebaseAuthException catch (e) {
+          if (e.code == 'credential-already-in-use') {
+            // Fallback: the Google account already exists, so log in with it.
+            final UserCredential userCredential = await _auth.signInWithPopup(googleProvider);
+            return userCredential.user;
+          }
+          rethrow;
+        }
       } else {
         final credential = await _getMobileGoogleCredential();
         if (credential == null) return null;
 
-        final UserCredential userCredential = await user.linkWithCredential(credential);
-        return userCredential.user;
+        try {
+          final UserCredential userCredential = await user.linkWithCredential(credential);
+          return userCredential.user;
+        } on FirebaseAuthException catch (e) {
+          if (e.code == 'credential-already-in-use') {
+            // Fallback: the Google account already exists, so log in with it.
+            final UserCredential userCredential = await _auth.signInWithCredential(credential);
+            return userCredential.user;
+          }
+          rethrow;
+        }
       }
     } on FirebaseAuthException catch (e, stackTrace) {
       debugPrint('FirebaseAuthException in linkWithGoogle: ${e.code} - ${e.message}\n$stackTrace');
-      if (e.code == 'credential-already-in-use') {
-        throw Exception('Questo account Google è già associato a un altro utente. Impossibile collegarlo.');
-      } else if (e.code == 'provider-already-linked') {
+      if (e.code == 'provider-already-linked') {
         throw Exception('Questo profilo è già collegato ad un account Google.');
       } else {
         throw Exception('Errore durante il collegamento Google: ${e.message}');
@@ -78,7 +94,9 @@ class AuthService {
     } on FirebaseAuthException catch (e) {
       debugPrint('FirebaseAuthException in linkWithProviderCredential: ${e.code} - ${e.message}');
       if (e.code == 'credential-already-in-use' || e.code == 'email-already-in-use') {
-        throw Exception('Questo account è già associato a un altro utente. Impossibile collegarlo.');
+        // Fallback: the account already exists, so log in with it.
+        final UserCredential userCredential = await _auth.signInWithCredential(credential);
+        return userCredential.user;
       } else if (e.code == 'provider-already-linked') {
         throw Exception('Questo profilo è già collegato ad un account con lo stesso provider.');
       } else {

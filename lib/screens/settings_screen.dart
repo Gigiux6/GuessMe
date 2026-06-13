@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/user_provider.dart';
 import '../providers/game_provider.dart';
 import '../widgets/custom_button.dart';
@@ -57,10 +58,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      CircleAvatar(
-                        radius: 30,
-                        backgroundImage: user?.avatarUrl != null ? NetworkImage(user!.avatarUrl) : null,
-                        child: user?.avatarUrl == null ? const Icon(Icons.person) : null,
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.grey[300],
+                        ),
+                        child: ClipOval(
+                          child: user?.avatarUrl != null
+                              ? CachedNetworkImage(
+                                  imageUrl: user!.avatarUrl,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                                  errorWidget: (context, url, error) => const Icon(Icons.person, color: Colors.black),
+                                )
+                              : const Icon(Icons.person, color: Colors.black),
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(

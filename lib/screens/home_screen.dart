@@ -198,16 +198,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Container(
                         width: 100,
                         height: 100,
-                        clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
+                          shape: BoxShape.circle,
                           border: Border.all(color: Colors.black, width: 3),
-                          borderRadius: BorderRadius.circular(50),
                         ),
-                        child: CachedNetworkImage(
-                          imageUrl: user.avatarUrl,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                          errorWidget: (context, url, error) => const Icon(Icons.person),
+                        child: ClipOval(
+                          child: CachedNetworkImage(
+                            imageUrl: user.avatarUrl,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                            errorWidget: (context, url, error) => const Icon(Icons.person),
+                          ),
                         ),
                       ),
                     ),

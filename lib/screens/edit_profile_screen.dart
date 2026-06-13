@@ -1002,47 +1002,60 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 children: [
                   Text(userProvider.t('choose_avatar'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black)),
                   const SizedBox(height: 16),
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 15,
-                      mainAxisSpacing: 15,
+                  DropdownButtonFormField<String>(
+                    value: _avatars.contains(_selectedAvatar) ? _selectedAvatar : null,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.white,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Colors.black, width: 2),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Colors.black, width: 2),
+                      ),
                     ),
-                    itemCount: _avatars.length,
-                    itemBuilder: (context, index) {
-                      final avatar = _avatars[index];
-                      final isSelected = _selectedAvatar == avatar;
-                      return GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () {
-                          setState(() {
-                            _selectedAvatar = avatar;
-                          });
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: isSelected ? Colors.black.withOpacity(0.3) : Colors.white.withOpacity(0.1),
-                            border: Border.all(
-                              color: isSelected ? Colors.black : Colors.transparent,
-                              width: 4,
-                            ),
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: Center(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Image.network(
-                                avatar,
+                    hint: Text(
+                      userProvider.t('choose_avatar'),
+                      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                    ),
+                    isExpanded: true,
+                    dropdownColor: Colors.white,
+                    iconEnabledColor: Colors.black,
+                    items: _avatars.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final avatar = entry.value;
+                      final seed = 'Avatar ${index + 1}';
+                      return DropdownMenuItem<String>(
+                        value: avatar,
+                        child: Row(
+                          children: [
+                            ClipOval(
+                              child: CachedNetworkImage(
+                                imageUrl: avatar,
+                                width: 30,
+                                height: 30,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Icon(Icons.person),
+                                placeholder: (context, url) => const SizedBox(width: 30, height: 30, child: CircularProgressIndicator(strokeWidth: 2)),
+                                errorWidget: (context, url, error) => const Icon(Icons.person, color: Colors.black),
                               ),
                             ),
-                          ),
+                            const SizedBox(width: 15),
+                            Text(
+                              seed,
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+                            ),
+                          ],
                         ),
                       );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          _selectedAvatar = value;
+                        });
+                      }
                     },
                   ),
                 ],
