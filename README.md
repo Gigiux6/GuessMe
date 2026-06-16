@@ -5,7 +5,7 @@
 ![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20Web-green?style=for-the-badge&logo=googlechrome)
 
 <p align="center">
-  <img src="assets/images/banner.png" width="450" alt="GuessMe Banner">
+  <img src="assets/images/banner.png" width="500" alt="GuessMe Banner">
 </p>
 
 ## 🚀 Live Demo & Downloads
@@ -34,29 +34,6 @@
 *   **State Management**: Provider
 *   **Audio**: Audioplayers for immersive sound effects.
 *   **Graphics**: Modern design system with responsive layouts for mobile and web.
-
-## 📱 Getting Started
-
-### Prerequisites
-*   Flutter SDK (Latest version recommended)
-*   A Firebase project setup with Realtime Database enabled.
-
-### Installation
-1.  **Clone the repository**:
-    ```bash
-    git clone https://github.com/Gigiux6/GuessMe.git
-    ```
-2.  **Install dependencies**:
-    ```bash
-    flutter pub get
-    ```
-3.  **Firebase Configuration**:
-    *   Add your `google-services.json` (Android) and `GoogleService-Info.plist` (iOS) to the respective directories.
-    *   For Web, initialize Firebase in `index.html` or through `firebase_options.dart`.
-4.  **Run the app**:
-    ```bash
-    flutter run
-    ```
 
 ## 🌍 Localization
 The app automatically detects your system language or allows you to change it in the settings.
